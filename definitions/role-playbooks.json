@@ -1,0 +1,29 @@
+{
+  "description": "Maps person.role_class to what each workflow should lead with. Keeps the harness role-aware without hardcoding any team. Skills read this to decide ordering and emphasis; they never skip a capability the user explicitly asks for.",
+  "role_classes": {
+    "ic": {
+      "label": "Individual Contributor",
+      "standup_order": ["my_open_issues", "my_review_queue", "my_open_prs", "todays_meetings", "support_scan", "monitoring_scan"],
+      "pm_emphasis": "personal work: assigned issues, PRs awaiting my review, my stale branches",
+      "support_emphasis": "questions touching repos I maintain",
+      "metrics": "skip team scorecards unless asked; surface only my cycle-time outliers",
+      "monitoring_emphasis": "Sentry errors touching repos I maintain; skip team-wide alerting unless asked"
+    },
+    "manager": {
+      "label": "Engineering Manager",
+      "standup_order": ["team_health", "sprint_status", "blocked_or_stale_issues", "prs_needing_review", "monitoring_scan", "todays_meetings", "support_scan"],
+      "pm_emphasis": "team-level: sprint health, stale in-progress, unassigned work, WIP limits, aging PRs",
+      "support_emphasis": "unanswered support across all team channels + SLA risk",
+      "metrics": "lead with Compass team scorecards (delegate to compass-analyst), flag gate regressions",
+      "monitoring_emphasis": "team-wide alerting + SLA/error-budget risk: firing Datadog monitors, spiking Sentry issues, failing cron monitors"
+    },
+    "staff": {
+      "label": "Staff / Principal Engineer",
+      "standup_order": ["cross_repo_prs", "architecture_risks", "monitoring_scan", "blocked_or_stale_issues", "team_health", "todays_meetings", "support_scan"],
+      "pm_emphasis": "cross-cutting: PRs/issues spanning multiple repos, tech-debt and architecture follow-ups",
+      "support_emphasis": "deep/technical unanswered threads where codebase grounding matters most",
+      "metrics": "Compass trends across the repos I touch; correlate with PR throughput",
+      "monitoring_emphasis": "cross-service error/perf trends and systemic reliability risks; correlate Sentry/Datadog with recent releases"
+    }
+  }
+}

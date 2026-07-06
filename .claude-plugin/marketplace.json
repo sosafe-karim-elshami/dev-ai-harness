@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "sosafe-harness",
+  "owner": {
+    "name": "SoSafe Platform Engineering"
+  },
+  "description": "Distribution catalog for the dev-ai-harness team plugin.",
+  "plugins": [
+    {
+      "name": "dev-ai-harness",
+      "source": "./",
+      "description": "Role-aware team harness for daily agentic workflows (standup, PM, triage, meetings, monitoring).",
+      "category": "productivity",
+      "keywords": ["harness", "team", "standup", "jira", "monitoring"]
+    }
+  ]
+}

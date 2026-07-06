@@ -1,0 +1,57 @@
+{
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "Bash(gh api:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh search:*)",
+      "Bash(gh repo list:*)",
+      "Bash(gh auth status)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(jq:*)",
+      "Bash(mkdir -p:*)",
+      "Read",
+      "Grep",
+      "Glob"
+    ],
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(**/.npmrc)",
+      "Read(**/credentials*)"
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "sosafe-claude-market": {
+      "source": {
+        "source": "github",
+        "repo": "sosafe-platform-engineering/dev-ai-claude-marketplace"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "sosafe-engineering-metrics@sosafe-claude-market": true,
+    "sosafe-pr-workflow@sosafe-claude-market": true,
+    "sosafe-planning@sosafe-claude-market": true,
+    "sosafe-security@sosafe-claude-market": true,
+    "sosafe-architecture@sosafe-claude-market": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__claude_ai_Slack__slack_send_message|mcp__claude_ai_Slack__slack_schedule_message|mcp__claude_ai_Slack__slack_create_canvas|mcp__claude_ai_Slack__slack_update_canvas|mcp__claude_ai_Atlassian__transitionJiraIssue|mcp__claude_ai_Atlassian__editJiraIssue|mcp__claude_ai_Atlassian__createJiraIssue|mcp__claude_ai_Atlassian__addCommentToJiraIssue|mcp__claude_ai_Atlassian__createConfluencePage|mcp__claude_ai_Atlassian__updateConfluencePage|mcp__claude_ai_Atlassian__createConfluenceFooterComment|mcp__claude_ai_Atlassian__createConfluenceInlineComment|mcp__claude_ai_Gmail__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/confirm-outward-actions.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

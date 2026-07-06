@@ -1,0 +1,14 @@
+# Cloned team repos live here — never committed
+workspace/*
+!workspace/.gitkeep
+
+# Local per-session scratch
+.scratch/
+*.log
+
+# harness CLI build artifacts (source in cli/src is committed)
+cli/node_modules/
+cli/dist/
+
+# OS
+.DS_Store

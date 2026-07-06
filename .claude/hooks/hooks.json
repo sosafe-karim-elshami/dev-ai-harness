@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__claude_ai_Slack__slack_send_message|mcp__claude_ai_Slack__slack_schedule_message|mcp__claude_ai_Slack__slack_create_canvas|mcp__claude_ai_Slack__slack_update_canvas|mcp__claude_ai_Atlassian__transitionJiraIssue|mcp__claude_ai_Atlassian__editJiraIssue|mcp__claude_ai_Atlassian__createJiraIssue|mcp__claude_ai_Atlassian__addCommentToJiraIssue|mcp__claude_ai_Atlassian__createConfluencePage|mcp__claude_ai_Atlassian__updateConfluencePage|mcp__claude_ai_Atlassian__createConfluenceFooterComment|mcp__claude_ai_Atlassian__createConfluenceInlineComment|mcp__claude_ai_Gmail__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/.claude/hooks/confirm-outward-actions.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

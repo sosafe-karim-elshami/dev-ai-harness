@@ -1,0 +1,45 @@
+{
+  "description": "Reusable, read-only query templates used by harness-onboarding and the workflow skills. Placeholders in {curly_braces} are filled from the profile or the current user. All entries here are GETs/searches only — no template mutates remote state.",
+  "github": {
+    "current_user": "gh api user --jq '{login: .login, name: .name, email: .email}'",
+    "repos_recent_push": "gh api 'user/repos?sort=pushed&per_page=50&affiliation=owner,collaborator,organization_member' --jq '[.[] | {full_name, primary_language: .language, pushed_at}]'",
+    "repos_i_authored_prs": "gh search prs --author=@me --limit 50 --json repository --jq '[.[].repository.nameWithOwner] | unique'",
+    "open_prs_for_repo": "gh pr list --repo {full_name} --state open --json number,title,author,reviewDecision,isDraft,updatedAt,url",
+    "my_review_requests": "gh search prs --review-requested=@me --state open --limit 50 --json title,repository,url,updatedAt"
+  },
+  "jira": {
+    "visible_projects": "use mcp__claude_ai_Atlassian__getVisibleJiraProjects",
+    "my_recent_issues_jql": "assignee = currentUser() ORDER BY updated DESC",
+    "derive_project_keys": "From my_recent_issues, tally issue key prefixes; the top 1-3 prefixes are the candidate project_keys.",
+    "stale_in_progress_jql": "project IN ({project_keys}) AND status = 'In Progress' AND updated <= -5d ORDER BY updated ASC",
+    "missing_estimate_jql": "project IN ({project_keys}) AND sprint IN openSprints() AND 'Story Points' IS EMPTY",
+    "unassigned_jql": "project IN ({project_keys}) AND statusCategory != Done AND assignee IS EMPTY ORDER BY created DESC",
+    "open_support_jql": "project IN ({project_keys}) AND labels = support AND statusCategory != Done AND assignee IS EMPTY ORDER BY created DESC"
+  },
+  "confluence": {
+    "find_person_team_cql": "type = page AND text ~ \"{name}\" AND (title ~ \"team\" OR title ~ \"squad\" OR title ~ \"org chart\")",
+    "ground_answer_cql": "type = page AND text ~ \"{query}\" AND space.key IN ({confluence_space_keys})"
+  },
+  "slack": {
+    "find_me": "use mcp__claude_ai_Slack__slack_search_users with query {name} or {email}",
+    "find_channels": "use mcp__claude_ai_Slack__slack_search_channels with query patterns: {team}, support, incidents, alerts, pr, releases",
+    "unanswered_window_hours": 4,
+    "scan_support_channel": "use mcp__claude_ai_Slack__slack_read_channel on each support channel; a thread is 'unanswered' per triage-rubric.md"
+  },
+  "compass": {
+    "alias_source": "Read team_definitions.json from the installed sosafe-engineering-metrics plugin (skills/compass-metrics/definitions/team_definitions.json) and fuzzy-match team.name to an alias.",
+    "delegate": "For any metrics/scorecard request, hand off by intent to compass-analyst, e.g. 'Get scorecards for {compass_alias}, last {sprint_length_days} days'. Do not re-implement Compass."
+  },
+  "monitoring": {
+    "description": "All read-only and optional. Probe each; skip silently if the tool/credentials are absent.",
+    "sentry_authed": "sentry auth status",
+    "sentry_orgs": "sentry org list --json",
+    "sentry_projects": "sentry project list {sentry_org} --json",
+    "sentry_unresolved_issues": "sentry issue list {sentry_org}/{sentry_project} --query 'is:unresolved' --json --fields shortId,title,level,count,userCount,permalink --limit 10",
+    "sentry_firing_alerts": "sentry alert issues list {sentry_org}/{sentry_project} --json",
+    "sentry_cron_monitors": "sentry monitor list {sentry_org}/{sentry_project} --json",
+    "sentry_dashboards": "sentry dashboard list {sentry_org} --json",
+    "datadog": "If mcp__claude_ai_Datadog__* tools (or a datadog-ci/API path) are available, list monitors scoped by integrations.datadog.monitor_tags and read named dashboards. Otherwise skip.",
+    "amplitude": "If an Amplitude connector or integrations.amplitude.project_ids + credentials exist, surface named charts/dashboards (links only). Otherwise skip."
+  }
+}

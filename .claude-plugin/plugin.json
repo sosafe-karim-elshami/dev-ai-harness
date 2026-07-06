@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dev-ai-harness",
+  "displayName": "Dev AI Harness",
+  "description": "Role-aware team harness: standup, PM/Jira, support triage, meetings, and production monitoring — read-mostly by default, every outward action gated.",
+  "author": { "name": "SoSafe Platform Engineering" },
+  "repository": "https://github.com/sosafe-platform-engineering/dev-ai-harness",
+  "license": "MIT",
+  "keywords": ["harness", "standup", "jira", "pm", "support-triage", "meetings", "monitoring"],
+  "skills": "./.claude/skills/",
+  "commands": ["./.claude/commands/"],
+  "hooks": "./.claude/hooks/hooks.json"
+}

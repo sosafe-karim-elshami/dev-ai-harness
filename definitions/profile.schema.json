@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sosafe.dev/dev-ai-harness/profile.schema.json",
+  "title": "Harness Profile",
+  "description": "Per-user, role-aware context discovered by harness-onboarding. Persisted at ~/.claude/sosafe-harness/profile.json. Never committed.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "person"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "person": {
+      "type": "object",
+      "required": ["name", "role_class"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "description": "Free-text job title, e.g. 'Senior Frontend Engineer'." },
+        "role_class": { "type": "string", "enum": ["ic", "manager", "staff"] },
+        "github_login": { "type": "string" },
+        "slack_user_id": { "type": "string" },
+        "jira_account_id": { "type": "string" },
+        "atlassian_cloud_id": { "type": "string" }
+      }
+    },
+    "team": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "compass_alias": { "type": "string", "description": "Alias used by sosafe-engineering-metrics, resolved from team_definitions.json." },
+        "confluence_space_keys": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["full_name"],
+        "additionalProperties": false,
+        "properties": {
+          "full_name": { "type": "string", "description": "owner/name" },
+          "role": { "type": "string", "enum": ["maintainer", "contributor", "codeowner", "watcher"] },
+          "primary_language": { "type": "string" },
+          "cloned": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "jira": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_keys": { "type": "array", "items": { "type": "string" } },
+        "default_board_id": { "type": ["integer", "null"] }
+      }
+    },
+    "slack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "team_channels": { "type": "array", "items": { "$ref": "#/$defs/channel" } },
+        "support_channels": { "type": "array", "items": { "$ref": "#/$defs/channel" } },
+        "pr_channel_id": { "type": ["string", "null"] }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "Optional monitoring/analytics connections. Every field is best-effort and read-only; workflows skip silently when a section is absent.",
+      "additionalProperties": true,
+      "properties": {
+        "compass": { "type": "object", "properties": { "available": { "type": "boolean" }, "alias": { "type": "string" } } },
+        "sentry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "org": { "type": "string", "description": "Sentry org slug (used by the sentry CLI as <org>/<project>)." },
+            "projects": { "type": "array", "items": { "type": "string" }, "description": "Sentry project slugs to watch." },
+            "dashboards": { "type": "array", "items": { "type": "string" }, "description": "Dashboard names/ids to surface." }
+          }
+        },
+        "amplitude": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "project_ids": { "type": "array", "items": { "type": ["string", "integer"] } },
+            "dashboards": { "type": "array", "items": { "type": "string" }, "description": "Amplitude chart/dashboard ids or share URLs to surface." }
+          }
+        },
+        "datadog": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "site": { "type": "string", "description": "Datadog site, e.g. datadoghq.com or datadoghq.eu." },
+            "monitor_tags": { "type": "array", "items": { "type": "string" }, "description": "Tag filters (e.g. team:foo, service:bar) used to scope monitors." },
+            "dashboards": { "type": "array", "items": { "type": "string" }, "description": "Dashboard ids/titles to surface." }
+          }
+        }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "sprint_length_days": { "type": "integer", "default": 14 },
+        "confirm_outward_actions": { "type": "boolean", "default": true }
+      }
+    },
+    "discovery_provenance": {
+      "type": "object",
+      "description": "How each top-level section was obtained.",
+      "additionalProperties": { "type": "string", "enum": ["asked-user", "github-api", "confluence", "jira", "slack-search", "team-definitions", "skipped"] }
+    }
+  },
+  "$defs": {
+    "channel": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "id": { "type": "string" }
+      }
+    }
+  }
+}
