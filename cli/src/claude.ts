@@ -30,6 +30,22 @@ export interface RunResult {
   costUsd: number | null;
   durationMs: number | null;
   isError: boolean;
+  /**
+   * Signatures of the tools the run invoked, in order. `Skill` calls are
+   * recorded as `Skill:<name>` and `Bash` as `Bash:<command>` so the evaluator
+   * can score routing (which skill ran) and read-only compliance (did anything
+   * mutating get attempted). Best-effort: only populated from stream-json events.
+   */
+  toolsUsed: string[];
+}
+
+/** A compact, greppable signature for a tool_use block (for the evaluator). */
+function signatureFor(block: any): string {
+  const name: string = block?.name ?? "unknown";
+  if (name === "Skill") return `Skill:${block?.input?.skill ?? "?"}`;
+  if (name === "Bash") return `Bash:${String(block?.input?.command ?? "").slice(0, 120)}`;
+  if (name === "Task") return `Task:${block?.input?.subagent_type ?? "?"}`;
+  return name;
 }
 
 export function runClaude(opts: RunOptions): Promise<RunResult> {
@@ -64,6 +80,7 @@ export function runClaude(opts: RunOptions): Promise<RunResult> {
     let resolvedSession = opts.sessionId;
     let isError = false;
     let stderr = "";
+    const toolsUsed: string[] = [];
 
     child.stderr.on("data", (d) => (stderr += d.toString()));
 
@@ -92,8 +109,9 @@ export function runClaude(opts: RunOptions): Promise<RunResult> {
             if (block.type === "text" && block.text) {
               if (!opts.quiet) process.stdout.write(block.text);
               finalText += block.text;
-            } else if (block.type === "tool_use" && !opts.quiet) {
-              process.stdout.write(c.dim(`\n  · ${block.name}\n`));
+            } else if (block.type === "tool_use") {
+              toolsUsed.push(signatureFor(block));
+              if (!opts.quiet) process.stdout.write(c.dim(`\n  · ${block.name}\n`));
             }
           }
           break;
@@ -125,6 +143,7 @@ export function runClaude(opts: RunOptions): Promise<RunResult> {
         costUsd,
         durationMs,
         isError,
+        toolsUsed,
       });
     });
   });

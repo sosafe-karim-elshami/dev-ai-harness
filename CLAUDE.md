@@ -25,6 +25,8 @@ This file is loaded into every session in this repo. It is the routing brain.
 | transcribed/finished meeting, "ingest my Gemini notes", follow up on a meeting | `/meeting` (follow-up mode) → `harness-meetings` |
 | "show my dashboard", dev status at a glance | `harness dashboard` (CLI) → composes `harness-pm` + `harness-support-triage` + `harness-meetings` |
 | "self-improve", reflect and propose harness improvements | `/self-improve` → `harness-self-improve` |
+| end-of-day wrap-up, "what happened today", "prepare for tomorrow", "collect my action items", "align my docs", 2-hour autonomous check-in | `/checkin` → `harness-checkin` |
+| career growth, visibility gap, IDP check, "how do I level up?", "what should I present?", 1:1 with growth/salary focus, knowledge sharing prep | `harness-growth` |
 | capture/find a note, "add this to my notes", "what did I write about X" | `/notes` (global) → the Obsidian vault |
 | create a PR / branch | reuse `sosafe-pr-workflow` (don't reimplement) |
 | break work into Jira tickets | reuse `sosafe-planning` |
@@ -36,14 +38,15 @@ This file is loaded into every session in this repo. It is the routing brain.
 - **Confirm before any outward/destructive action.** Posting to Slack, transitioning/creating/commenting on Jira, editing Confluence, sending email, `git push`, `gh pr create|merge`. Batch them and ask **once**, naming every target. A `PreToolUse` hook (`.claude/hooks/confirm-outward-actions.sh`) enforces this independently of prose — if you ever find it bypassed, stop and surface it.
 - **Reuse the marketplace, don't rebuild it.** Metrics → `compass-analyst`. PRs → `sosafe-pr-workflow`. Ticket creation → `sosafe-planning`. Reviews → `sosafe-security`/`sosafe-architecture`.
 - **Ground every answer.** Cite sources — code in `workspace/`, `knowledge/` entries, Confluence pages, Jira keys, Slack permalinks. Never invent.
+- **Verify before you recall.** Memory and `knowledge/` reflect what was true when written. Before recommending a file, flag, or command that a memory/knowledge entry names, confirm it still exists (Grep/Read); if it's gone, say so and surface it for cleanup (`harness memory audit`) rather than repeating stale guidance. Check `knowledge/anti-patterns/` before answering — a match there is a known dead end.
 - **The profile is per-user and private** (`~/.claude/sosafe-harness/`). The `knowledge/` folder is shared team memory and is committed. Don't put one where the other belongs.
 
 ## Layout
 
-- `definitions/` — `profile.schema.json` (validate the profile), `role-playbooks.json` (role emphasis), `discovery-queries.json` (read-only query templates).
-- `knowledge/` — committed, shareable team memory. Workflows check it first; `harness-support-triage` grows it.
+- `definitions/` — `profile.schema.json` (validate the profile), `role-playbooks.json` (role emphasis), `discovery-queries.json` (read-only query templates), `eval/golden-tasks.jsonl` (the recorded asks `harness eval` replays to score the harness).
+- `knowledge/` — committed, shareable team memory. Workflows check it first; `harness-support-triage` grows it. `knowledge/anti-patterns/` is the negative-results store — recorded wrong answers and dead ends, checked before answering.
 - `workspace/` — gitignored; the repos the user maintains, cloned by `harness-workspace`.
-- `.claude/skills|commands|hooks` — the harness itself.
+- `.claude/skills|commands|hooks` — the harness itself. Two hooks: `confirm-outward-actions.sh` (PreToolUse guard) and `log-skill-run.sh` (PostToolUse observability — logs each skill run to the private `runs.jsonl`, read by `harness metrics`).
 
 ## Knowledge vault (Obsidian)
 

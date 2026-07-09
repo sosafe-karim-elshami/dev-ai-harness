@@ -14,6 +14,8 @@ export interface HarnessConfig {
   harnessRepo: string;
   /** Default context used by `harness run` when none is named. */
   defaultContext?: string;
+  /** Absolute path to the user's Obsidian knowledge vault (set by /setup). */
+  vaultPath?: string;
 }
 
 export const configDir = (): string => join(homedir(), ".claude", "sosafe-harness");

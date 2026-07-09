@@ -48,9 +48,10 @@ Rank by age + signal (customer-facing > internal). Present the queue compactly: 
 ## 2. Draft grounded replies (drafts only)
 
 For each item the user wants to answer, **ground the answer before writing it**, in this order:
-1. **`knowledge/`** — Grep the repo's `knowledge/*.md` for a matching FAQ/runbook. If found, base the reply on it and cite it.
-2. **Codebase** — Grep/Read the relevant repo under `workspace/` (from `profile.repos`) for the authoritative behavior.
-3. **Confluence** — `searchConfluenceUsingCql` with `confluence.ground_answer_cql` scoped to the team spaces.
+1. **`knowledge/anti-patterns/`** — Grep here **first**. A match is a known wrong answer / dead end: don't repeat it; use its "Do instead" as the starting point. (See `knowledge/anti-patterns/README.md`.)
+2. **`knowledge/`** — Grep the repo's `knowledge/*.md` for a matching FAQ/runbook. If found, base the reply on it and cite it.
+3. **Codebase** — Grep/Read the relevant repo under `workspace/` (from `profile.repos`) for the authoritative behavior.
+4. **Confluence** — `searchConfluenceUsingCql` with `confluence.ground_answer_cql` scoped to the team spaces.
 
 Write a concise draft that **answers + cites sources** (code path, `knowledge/` entry, Confluence/Jira link). If you can't ground it, say what's missing and ask the user rather than guessing.
 
@@ -67,3 +68,5 @@ When the user approves specific drafts:
 After a reply is confirmed and sent, if the question is likely to recur, offer:
 > "Save this as a `knowledge/` entry so we can answer instantly next time?"
 If yes, write `knowledge/<slug>.md` using the format in `knowledge/README.md` (you may use the `skill-builder` skill), with `sources` pointing at the thread/ticket. This is a local repo write (commit it in a normal PR) — not an outward action.
+
+**Record negative results too.** If a drafted answer turns out to be wrong (the asker corrects it, or it's later disproven), offer to capture it in `knowledge/anti-patterns/<slug>.md` using the format in `knowledge/anti-patterns/README.md` — what was tried, why it failed, what to do instead. A recorded loss is what stops the harness making the same mistake next time.

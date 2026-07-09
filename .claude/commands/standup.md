@@ -3,14 +3,18 @@ Composite, **read-only** daily driver: project status + support scan + today's m
 ## Steps
 
 1. Read `~/.claude/sosafe-harness/profile.json` (missing → `/setup`). Get `person.role_class` and the matching `standup_order` from `${CLAUDE_PLUGIN_ROOT}/definitions/role-playbooks.json`.
-2. Run the sections in that order, gathering only (no mutations):
+2. **Seed from the pending doc.** Check for `$VAULT/digests/<today>-pending.md`.
+   If it exists, read it and note any already-open action items, meeting prep
+   items, and docs-to-update that the overnight or earlier cron runs surfaced.
+   Show these as the starting point for today rather than re-deriving them.
+3. Run the sections in that order, gathering only (no mutations):
    - **PM** — invoke `harness-pm` for the status summary + PR tracking (+ team metrics via `compass-analyst` for managers/staff). Skip the "apply fixes" step here.
    - **Support** — invoke `harness-support-triage` step 1 only: surface the unanswered queue (no drafting unless asked).
    - **Meetings** — invoke `harness-meetings` prep for today's calendar events (agenda highlights, not full notes).
    - **Monitoring** — if `monitoring_scan` is in this role's `standup_order` and `profile.integrations` has any monitoring tool configured, invoke `harness-monitoring` for a short production-health read (firing alerts / spiking Sentry issues). Skip silently if nothing is configured.
-3. Produce one consolidated digest, role-ordered, with links.
-4. **Save the digest** to the Obsidian vault so it's browsable and cross-linked: resolve `$VAULT` via `jq -r '.vaultPath' ~/.claude/sosafe-harness/config.json`, then write the digest to `$VAULT/digests/<YYYY-MM-DD>.md` with frontmatter (`type: digest`, `tags: [harness, standup]`, `updated: <date>`). Link out to relevant `[[meetings/...]]` and `[[memory/...]]` notes, and add a one-line `[[wikilink]]` under "## Recent" in `$VAULT/index.md`. If `vaultPath` is missing/empty, skip this step silently. Writing a local note is allowed — it changes no remote state.
-5. End with: "Want me to draft support replies, prep a specific meeting, or fix any Jira hygiene? I'll confirm before anything is sent."
+4. Produce one consolidated digest, role-ordered, with links.
+5. **Save the digest** to the Obsidian vault so it's browsable and cross-linked: resolve `$VAULT` via `jq -r '.vaultPath' ~/.claude/sosafe-harness/config.json`, then write the digest to `$VAULT/digests/<YYYY-MM-DD>.md` with frontmatter (`type: digest`, `tags: [harness, standup]`, `updated: <date>`). Link out to relevant `[[meetings/...]]` and `[[memory/...]]` notes, and add a one-line `[[wikilink]]` under "## Recent" in `$VAULT/index.md`. If `vaultPath` is missing/empty, skip this step silently. Writing a local note is allowed — it changes no remote state.
+6. End with: "Want me to draft support replies, prep a specific meeting, or fix any Jira hygiene? I'll confirm before anything is sent."
 
 Never send or change any **remote** state in `/standup` (Slack/Jira/email/git). It only reads, reports, and saves a local digest note.
 

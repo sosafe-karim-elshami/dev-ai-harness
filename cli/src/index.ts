@@ -17,6 +17,7 @@ import {
 import { readSessions, resetContext } from "./sessions.js";
 import { executeContext } from "./run.js";
 import { showMemory, memoryFilePath, appendMemory } from "./memory.js";
+import { memoryAudit } from "./memory-audit.js";
 import { sync } from "./sync.js";
 import { installCron } from "./cron.js";
 import {
@@ -32,6 +33,8 @@ import { inferEdges } from "./graph-infer.js";
 import { startMcp } from "./mcp.js";
 import { dashboard } from "./dashboard.js";
 import { selfImprove } from "./self-improve.js";
+import { evaluate } from "./eval.js";
+import { metrics } from "./observability.js";
 import { graphPath } from "./paths.js";
 
 // Slash-command sugar: subcommand → the harness slash command it triggers.
@@ -72,6 +75,10 @@ async function main(argv: string[]): Promise<number> {
       return dashboard(rest);
     case "self-improve":
       return selfImprove(rest);
+    case "eval":
+      return evaluate(rest);
+    case "metrics":
+      return metrics(rest);
     case "mcp":
       return startMcp();
     case "help":
@@ -164,8 +171,9 @@ function cmdReset(rest: string[]): number {
   return 0;
 }
 
-function cmdMemory(rest: string[]): number {
+async function cmdMemory(rest: string[]): Promise<number> {
   const [sub, ...args] = rest;
+  if (sub === "audit") return memoryAudit(args);
   const context = (sub === "show" || sub === "edit" || sub === "add" ? args[0] : sub) ?? "global";
   switch (sub) {
     case "show":
@@ -329,9 +337,12 @@ function usage(): number {
       `  harness followup ["<meeting>"]  ${c.dim("ingest a meeting transcript + draft action items")}\n` +
       `  harness dashboard [--digest]    ${c.dim("role-ordered dev dashboard (PRs/Jira/meetings/support)")}\n` +
       `  harness self-improve [--digest] ${c.dim("read-only reflection: propose harness improvements")}\n` +
+      `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
+      `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +
       `  harness sessions                ${c.dim("list saved contexts + session ids")}\n` +
       `  harness reset <context>         ${c.dim("forget a context's session")}\n` +
       `  harness memory [show|add|edit]  ${c.dim("view/append durable memory")}\n` +
+      `  harness memory audit [--deep]   ${c.dim("flag stale / duplicate / contradictory memory (read-only)")}\n` +
       `  harness sync                    ${c.dim("git pull harness + refresh marketplaces")}\n` +
       `  harness install-cron [--apply]  ${c.dim("schedule weekday digest runs")}\n` +
       `  harness graph build [--infer]   ${c.dim("build the context graph (+ inferred links)")}\n` +

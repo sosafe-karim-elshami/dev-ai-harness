@@ -31,4 +31,4 @@ updated: 2026-06-23
 
 ## How it grows
 
-`harness-support-triage` checks this folder **first** when drafting an answer, and — after you confirm a reply — offers to distill it into a new or updated entry here. You can also author entries directly with the `skill-builder` skill. Keep entries short and link out rather than duplicating docs.
+`harness-support-triage` checks this folder **first** when drafting an answer, and — after you confirm a reply — offers to distill it into a new or updated entry here. You can also add entries directly: drop in a Markdown file following the format above. Keep entries short and link out rather than duplicating docs.
