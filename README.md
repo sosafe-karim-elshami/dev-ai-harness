@@ -2,6 +2,8 @@
 
 A **role-aware team harness** for Claude Code — clone it, run `/setup`, and get safe, daily agentic workflows over Jira, GitHub, Slack, Calendar, Gmail, Confluence, and Compass, grounded in a profile the harness discovers about *you*.
 
+It's an **abstraction for running your SDLC and managing your work** — plan → build → review → ship, plus standups, triage, meetings, monitoring, and follow-ups — that adapts to whoever runs it. Nothing personal is committed: the per-user profile (`~/.claude/sosafe-harness/profile.json`) and the private Obsidian knowledge vault live **outside** this repo. What ships here is the reusable machinery — skills, routing, evals, observability, and safety hooks — so any engineer or EM can clone it and make it their own.
+
 It is **not** a separate runtime. It runs inside Claude Code and *consumes* the [`sosafe-claude-market`](https://github.com/sosafe-platform-engineering/dev-ai-claude-marketplace) marketplace for the heavy lifting (metrics, PR workflow, planning, reviews). The marketplace is the **library**; this repo is the curated **product** that assembles it into daily workflows.
 
 > Design lineage: borrows patterns from the open-source [Hermes Agent](https://github.com/nousresearch/hermes-agent) (per-user home dir, distilled reusable knowledge, scoped tool exposure) and [NanoClaw](https://github.com/nanocoai/nanoclaw) ("skills over features" — you customize by talking to Claude Code, safe-by-default isolation) — without cloning either runtime.

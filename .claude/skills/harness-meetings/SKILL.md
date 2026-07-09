@@ -61,16 +61,19 @@ State which source you used. Then hand the raw transcript to the summarization s
    - GitHub: recent + open PRs across `profile.repos` worth discussing (`gh pr list`/`gh search prs`).
    - `$VAULT/knowledge/` and prior notes in `$VAULT/meetings/` (or `.scratch/meetings/`) for open follow-ups.
 3. Produce the agenda using `note-template.md`. Write it to `$VAULT/meetings/<date>-<slug>.md` (fallback `.scratch/meetings/<date>-<slug>.md`). Show it to the user.
-4. **Update the daily pending doc.** After writing the meeting note, upsert
-   `$VAULT/digests/<today>-pending.md`:
+4. **Update the daily file.** After writing the meeting note, upsert
+   `$VAULT/digests/<TODAY>.md` (the single daily file — never create a
+   separate pending or checkin file):
    - Read the file if it already exists; preserve all sections not related to
      this meeting.
    - Add or replace the `## Meeting prep needed` entry for this specific
      meeting with the prep action items just generated.
-   - If the file does not exist yet, create it using the pending-doc template
-     from `harness-checkin` Step 6b (with only the meeting prep section filled).
+   - If the file does not exist yet, create it using the daily-file template
+     from `harness-checkin` Step 6 (with only the meeting prep section filled,
+     `last_updated` set to now, and the meeting listed in `## Meetings today`).
    - Never duplicate a meeting entry — match by meeting title + date and
      replace in place.
+   - Always bump `last_updated` in the frontmatter to the current time.
 
 ## Run / notes
 - Open (or create) `$VAULT/meetings/<date>-<slug>.md` (fallback `.scratch/meetings/<date>-<slug>.md`). As the user relays discussion, append notes under each agenda item: decisions, blockers, and **action items** (owner + what + due if known), following the schema in `note-template.md`.
@@ -89,12 +92,13 @@ State which source you used. Then hand the raw transcript to the summarization s
 3. Ask **once**: "Create/post these N items? (yes/no)".
 4. On yes: `createJiraIssue` / `addCommentToJiraIssue` for Jira; `slack_send_message` for the summary/announcement. For Jira ticket creation, you may delegate to `sosafe-planning` for well-formed tickets. The guard hook prompts per outward call — expected.
 5. Optionally offer to publish the notes as a Confluence page (`createConfluencePage`) — gated, off unless asked.
-6. **Reconcile the daily pending doc.** After follow-up (regardless of
-   whether items were pushed), update `$VAULT/digests/<today>-pending.md`:
-   - Mark items that were pushed/created as `[x]` in the pending doc, or
-     remove the meeting's prep section entirely if all prep items are done.
+6. **Reconcile the daily file.** After follow-up (regardless of whether items
+   were pushed), update `$VAULT/digests/<TODAY>.md`:
+   - Mark items that were pushed/created as `[x]`, or remove the meeting's
+     prep section entirely if all prep items are done.
    - Append any **new** action items surfaced during follow-up to the
-     `## Open action items` section.
-   - Preserve everything else in the pending doc unchanged.
+     `## My action items` section (or `## Team items` for other owners).
+   - Preserve everything else in the daily file unchanged.
+   - Bump `last_updated` in the frontmatter to the current time.
 
 Respect `preferences.confirm_outward_actions`. Nothing leaves the machine without confirmation.

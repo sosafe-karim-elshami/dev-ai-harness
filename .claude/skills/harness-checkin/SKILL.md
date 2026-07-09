@@ -60,18 +60,38 @@ without touching any remote state unless the user confirms.
 
 ---
 
+## Daily file — the single source of truth
+
+**One file per day.** All check-in runs for a given date read from and write
+to a single file: `$VAULT/digests/<YYYY-MM-DD>.md`.
+
+- **If the file does not exist** (first run of the day): create it using the
+  template in Step 6.
+- **If it already exists** (subsequent runs): read the current state, then
+  **overwrite** it with an updated version — preserving all completed `[x]`
+  items, merging new action items, and bumping `last_updated`.
+- **Never create** `<date>-checkin-<HH>.md`, `<date>-pending.md`, or any
+  other per-run files. The single daily file replaces both.
+
+Mark the active day in the `## Meetings today` table with emoji status:
+- `✅` — meeting done, notes captured
+- `⏳` — meeting done, no notes yet
+- `🔜` — meeting still upcoming today
+
+---
+
 ## Step 1 — Ingest today's past meetings
 
 Fetch calendar events for today where `start ≤ $NOW` and attendee count ≥ 2.
 For each, find notes/transcript using this priority chain (degrade gracefully):
 
-1. **Google Drive** — search for a Gemini notes doc by meeting title + date.
-2. **Calendar attachment** — check event description/attachments for a Drive
+1. **Calendar attachment** — check event description/attachments for a Drive
    doc link and fetch it.
+2. **Google Drive** — search for a Gemini notes doc by meeting title + date.
 3. **Gmail recap** — search for Gemini recap emails from today (gated by guard
    hook in autonomous mode — skip silently if denied).
 4. **Existing vault note** — check `$VAULT/meetings/<today>-*.md`.
-5. **No source** — flag as "no notes found"; list at the end.
+5. **No source** — flag as "⏳ no notes found"; list at the end.
 
 For meetings with a raw Gemini transcript (sources 1–3): summarize it into
 the `note-template.md` structure and write to
@@ -171,107 +191,87 @@ Do **not** auto-update any page — flag only.
 
 ---
 
-## Step 6 — Write the check-in note and update the daily pending doc
+## Step 6 — Write (or update) the daily file
 
-### 6a — Hourly snapshot (audit log)
-
-Write `$VAULT/digests/<today>-checkin-<HH>.md` (hour-stamped so reruns
-don't overwrite):
-
-```markdown
----
-type: checkin
-date: <YYYY-MM-DD>
-hour: <HH>
-tags: [harness, checkin]
----
-
-# Check-in — <YYYY-MM-DD HH:MM>
-
-## Meetings today (past)
-- <title> (<time>) — source: <gemini-doc|gmail|vault-note|none>
-
-## Upcoming meetings — prep needed
-### <Meeting title> — <time> — ⚠️ URGENT (or estimated X min prep)
-**Action items (before meeting)**
-- [ ] [prep] <what> — due: <HH:MM>
-
-**To review**
-- [[prior notes]] — <summary line>
-- [Confluence: <title>](<url>) — <why relevant>
-
-## Action items (all owners)
-- [ ] [me] <what> — due: <date|none> — target: <…>
-- [ ] [<name>] <what> — due: <date|none>
-
-## Docs to update
-- [<page>](<url>) — <reason>
-
-## Tomorrow's plan
-### Meetings
-1. <title> — <time>
-
-### Jira focus
-- <KEY>: <summary> (due <date>)
-
-### Carry-over
-- [ ] <what>
-
-## No notes found
-- <title> (<time>) — paste transcript to `/meeting` to ingest
-```
-
-Add a `[[wikilink]]` under "## Recent" in `$VAULT/index.md`.
-
-### 6b — Daily pending doc (single aggregated view, rewritten each run)
-
-**Always** overwrite `$VAULT/digests/<today>-pending.md` with the current
-open/actionable state. This is the **single source of truth** for what still
-needs doing today. Every cron run replaces it entirely so stale items fall off
-automatically.
+Write to `$VAULT/digests/<TODAY>.md`. If the file already exists, read it
+first and merge: preserve completed `[x]` items, de-duplicate open items,
+bump `last_updated`. Never create a separate file for each run.
 
 ```markdown
 ---
-type: pending
+type: daily
 date: <YYYY-MM-DD>
-last_updated: <HH:MM>
-tags: [harness, pending]
+last_updated: "<HH:MM>"
+tags: [harness, daily]
 ---
 
-# Pending — <YYYY-MM-DD> (last updated <HH:MM>)
+# 📅 <YYYY-MM-DD> — Daily
+
+## Meetings today
+
+| Time | Meeting | Notes |
+|------|---------|-------|
+| <HH:MM> ✅/⏳/🔜 | <Title> (<duration>) | [[meetings/<slug>]] or — |
+
+---
+
+## My action items
+
+<!-- Overdue first, then by due date, then undated. Bold the top blocker. -->
+- [ ] **<most urgent item>** — due: <date|time> — <context>
+- [ ] <next item> — due: <date|none>
+
+---
 
 ## Meeting prep needed
-<!-- Only meetings that still need prep (start > $NOW). Omit if empty. -->
-### <Meeting title> — <HH:MM> — ⚠️ URGENT (or ~X min prep)
-- [ ] [prep] <what> — due: <HH:MM>
-**To review**
-- [[prior notes]] — <summary line>
-- [Confluence: <title>](<url>) — <why relevant>
 
-## Open action items
-<!-- All unchecked [me] items from today's meeting notes + carry-over.
-     Sort: overdue first, then by due date, then undated. -->
-- [ ] [me] <what> — due: <date|time|none> — target: <…>
-- [ ] [<other name>] <what> — due: <date|none>
+<!-- Only meetings that still need prep (start > $NOW). Omit section if all done. -->
+### <Meeting title> — <HH:MM> today — ⚠️ URGENT / ~X min prep
+**Full prep note:** [[meetings/<slug>]]
+- [ ] [prep] <what> — due: <HH:MM>
+
+**To review**
+- [<Confluence title>](<url>) — <why relevant>
+
+---
+
+## Team items
+
+- [ ] [<Name>] <what> — due: <date|none>
+
+---
 
 ## Docs to update
-<!-- Only items not yet marked done. Omit section if empty. -->
+
+<!-- Omit section if nothing needs updating. -->
 - [<page>](<url>) — <reason>
 
-## Tomorrow's plan
+---
+
+## Tomorrow — <YYYY-MM-DD>
+
 ### Meetings
-1. <title> — <time>
+| Time | Meeting | Prep |
+|------|---------|------|
+| <HH:MM> | <Title> | ~<X> min |
+
 ### Jira focus
-- <KEY>: <summary> (due <date>)
+- [<KEY>](<url>): <summary> — due <date|none>
+
 ### Carry-over
 - [ ] <what>
+
+---
+
+## Reminders
+<!-- Performance review, OKR deadlines, etc. Omit if none. -->
 ```
 
-**De-duplication rule:** if an item already appeared in an earlier checkin run
-today and is identical (same owner + what), include it once. Never duplicate.
+After writing, add or replace a link under "## Recent" in `$VAULT/index.md`:
+- **Today's date**: `- [[digests/<TODAY>|📅 <TODAY> (active)]] — <one-line summary>`
+- **Past dates**: `- [[digests/<DATE>|📅 <DATE>]] — <one-line summary>`
 
-**Completion rule:** do not carry forward items marked `[x]` in any meeting
-note or prior pending doc. Only open `[ ]` items appear here.
+Never add checkin-HH or pending links to the index — only the single daily link.
 
 ---
 
@@ -281,8 +281,8 @@ Ask once:
 > "Any action items from your side I should capture? List them (one per line,
 > or say 'none')."
 
-Append each to the master list tagged `[me]` and write back to the checkin
-note. In **autonomous mode**, skip and show this reminder instead:
+Append each to the master list tagged `[me]` and write back to the daily file.
+In **autonomous mode**, skip and show this reminder instead:
 > "Autonomous check-in saved. Run `/checkin` to add your own action items."
 
 ---
@@ -310,3 +310,7 @@ In **autonomous mode**: always draft, never push. Surface:
   proposed action and stop.
 - **Vault writes are always safe.** Writing to `$VAULT/digests/` or
   `$VAULT/meetings/` is local and does not trigger the guard hook.
+- **One file per day, always.** Never create `<date>-checkin-<HH>.md`,
+  `<date>-pending.md`, or any other per-run files. If you find old-format
+  files from previous runs, leave them alone — do not delete or merge them
+  automatically.
