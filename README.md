@@ -1,8 +1,8 @@
 # dev-ai-harness
 
-![Status: Experiment](https://img.shields.io/badge/status-experiment-orange) ![Author: karim.elshami](https://img.shields.io/badge/author-karim.elshami-blue) ![Team trial](https://img.shields.io/badge/trial-Experience%20Squads-purple)
+![Status: Experiment](https://img.shields.io/badge/status-experiment-orange) ![Author: karim.elshami](https://img.shields.io/badge/author-karim.elshami-blue) ![Team trial](https://img.shields.io/badge/trial-Learning%20Technology-purple)
 
-> **Experiment — July 2026.** Authored by [@karim.elshami](mailto:karim.elshami@sosafe.de) and being trialled by the Experience Squads team. Not production-hardened — expect rough edges. Feedback welcome: open an issue or ping `#dev-ai` in Slack.
+> **Experiment — July 2026.** Authored by [@karim.elshami](mailto:karim.elshami@sosafe.de) and being trialled by the Learning Technology team. Not production-hardened — expect rough edges. Feedback welcome: open an issue or ping `#dev-ai` in Slack.
 
 ---
 
