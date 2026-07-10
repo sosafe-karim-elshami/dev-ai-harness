@@ -121,26 +121,69 @@ Your **profile** (`~/.claude/sosafe-harness/profile.json`) and **knowledge vault
 
 You can have `/standup` and a support sweep run on a schedule (e.g. each weekday morning) via Claude Code's scheduling, producing a read-only digest of drafts. It never auto-sends. See `.claude/commands/standup.md` for the opt-in recipe. Off by default.
 
-## Design lineage & further reading
+## Intellectual foundations
 
-The harness is organized around the four things Lilian Weng's
-[*Harness Engineering for Self-Improvement*](https://lilianweng.github.io/posts/2026-07-04-harness/)
-(2026) says separate a *harness* from a bare agent — **workflow/loop
-engineering, evaluation, permission controls, and persistent state management** —
-and it takes her **seven bottlenecks** as a design checklist:
+This harness is deliberately built on two complementary frameworks. Both articles are worth reading before contributing.
 
-| Bottleneck (Weng) | Where the harness addresses it |
+---
+
+### Martin Fowler — [*Harness Engineering for Coding Agents*](https://martinfowler.com/articles/harness-engineering.html)
+
+Fowler's framing: a harness is **everything surrounding the model** — the outer layer of controls that steer agent behaviour before problems reach human review. Two control mechanisms, applied at every skill boundary:
+
+| Mechanism | What it means | How it appears here |
+|---|---|---|
+| **Guides (feedforward)** | Anticipatory controls that shape the agent *before* it acts | `CLAUDE.md` routing brain, `role-playbooks.json`, skill frontmatter triggers, profile-grounded context injected at session start |
+| **Sensors (feedback)** | Observational controls that enable self-correction *after* acting | `PostToolUse` hook → `runs.jsonl`, `harness eval` scorecard, `harness metrics`, `harness-self-improve` reflection |
+
+Fowler proposes three regulation dimensions. The harness targets all three:
+
+| Dimension | Definition | Implementation |
+|---|---|---|
+| **Maintainability** | Internal code quality controls | `harness-self-improve` proposes skill edits; `harness eval` scores them before they're accepted |
+| **Architecture fitness** | Structural constraints measured as fitness functions | Compass hygiene (ownership, security score, CD adoption) surfaced in every `/monitoring` run — these are H2 OKR inputs |
+| **Behaviour** | Functional correctness | `definitions/eval/golden-tasks.jsonl` — recorded golden asks that `harness eval` replays to verify routing and grounding haven't drifted |
+
+Two Fowler principles shape the safety model directly:
+
+- **Ambient Affordances** — the environment should be legible to the agent without it having to re-derive context. The profile (`~/.claude/sosafe-harness/profile.json`) is the distilled, structured answer to "who is running this?"; `knowledge/` and the vault do the same for team knowledge. Neither is ever inferred on the fly.
+- **Keep Quality Left** — checks run as early and cheaply as possible. The `PreToolUse` hook intercepts outward actions before they reach Slack, Jira, or GitHub; computational checks (hooks, linters) fire before inferential ones (Claude skill reasoning).
+
+---
+
+### Lilian Weng — [*Harness Engineering for Self-Improvement*](https://lilianweng.github.io/posts/2026-07-04-harness/) (2026)
+
+Weng defines a harness as "the system surrounding a base model that orchestrates execution." Four properties distinguish a harness from a bare agent:
+
+| Property | Implementation here |
 |---|---|
-| Weak/fuzzy **evaluators** | `harness eval` replays `definitions/eval/golden-tasks.jsonl` and scores routing / read-only / citations / grounding — the signal `harness-self-improve` optimizes against. |
-| Context/**memory lifecycle** | `harness memory audit` flags stale, duplicate, and (with `--deep`) contradictory memory across the CLI store, vault, and `knowledge/`. |
-| **Observability / drift** | A `PostToolUse(Skill)` hook logs every skill run to a private `runs.jsonl`; `harness metrics` reports coverage, usage, success rate, staleness, and orphan-log drift. (Ported from the CMS Platform team vault.) |
-| **Negative results** | `knowledge/anti-patterns/` records what *didn't* work; triage and self-improve check it first. |
-| Reward hacking / diversity collapse | self-improve verifies each applied change actually moved the scorecard, and reverts + records the ones that didn't. |
-| The **human role** | every outward action stays gated by the two-layer confirm (in-skill + `PreToolUse` hook); autonomous runs deny mutations outright. |
+| **Workflow design** | Per-role skill ordering (`role-playbooks.json`); goal-oriented plan → read → draft → confirm loops inside each skill |
+| **Evaluation mechanisms** | `harness eval` replays golden tasks and scores routing correctness, read-only compliance, citation grounding |
+| **Permission controls** | Two independent layers: in-skill confirmation batching + `PreToolUse` hook (the hook fires even if a skill's prose is bypassed) |
+| **Persistent state management** | Profile, `knowledge/`, vault, `runs.jsonl` — all survive context resets and cross-session boundaries |
 
-The measured signal → mine weaknesses → propose → apply → re-measure cycle is the
-local, human-gated version of the `prompt → context → workflow → harness code`
-optimization chain from the post.
+Weng's **optimization chain** describes how harnesses evolve as models get more capable. This repo maps to it directly:
+
+```
+profile + CLAUDE.md        →  structured context (what the agent knows about the user)
+role-playbooks.json        →  workflow (how to order and route work by role)
+skills + hooks             →  harness code (the executable policies)
+harness-self-improve       →  optimizer (proposes edits to harness code itself, scored before applied)
+```
+
+**Seven bottlenecks** — and how each is addressed:
+
+| Bottleneck | Response |
+|---|---|
+| Weak/fuzzy **evaluators** | `harness eval` replays `definitions/eval/golden-tasks.jsonl` and scores routing, read-only compliance, citations, and grounding — the signal `harness-self-improve` optimizes against |
+| **Context / memory lifecycle** | `harness memory audit` flags stale, duplicate, and contradictory memory across the CLI store, vault, and `knowledge/` |
+| **Negative results** | `knowledge/anti-patterns/` records what didn't work; triage and self-improve check it before answering |
+| **Diversity collapse** | `harness-self-improve` verifies each applied change actually moved the scorecard; reverts and records those that didn't |
+| **Reward hacking** | Self-improve requires a measured scorecard improvement before accepting any proposal — no credit for gaming the metric |
+| **Long-term / observability** | `PostToolUse` hook logs every skill run to `runs.jsonl`; `harness metrics` reports coverage, usage, success rate, staleness, and orphan-log drift |
+| **The human role** | Every outward action is gated by the two-layer confirm; autonomous scheduled runs deny mutations outright — the human stays in the loop at the right abstraction level |
+
+The measured signal → mine weaknesses → propose → apply → re-measure cycle is the local, human-gated version of Weng's recursive self-improvement loop — without removing the human from the critical path.
 
 ## Contributing
 
