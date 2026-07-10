@@ -185,6 +185,77 @@ harness-self-improve       →  optimizer (proposes edits to harness code itself
 
 The measured signal → mine weaknesses → propose → apply → re-measure cycle is the local, human-gated version of Weng's recursive self-improvement loop — without removing the human from the critical path.
 
+---
+
+### Tiago Forte — *Building a Second Brain* (2022) + Zettelkasten
+
+The vault layer of this harness is built on Forte's second brain methodology and Luhmann's Zettelkasten linking philosophy. Both address the same problem: most engineering tooling is designed for *doing* (Jira, GitHub), not for *thinking*. The vault holds your thinking so your biological brain doesn't have to.
+
+**The CODE workflow** — how knowledge moves through the system:
+
+| Step | What it means | How the harness implements it |
+|---|---|---|
+| **Capture** | Collect anything useful, immediately, frictionlessly | `/notes capture <text>` from any session or repo; skills write to the vault automatically (meetings, digests, monitoring) |
+| **Organise** | File by *actionability*, not by topic | PARA-mapped vault folders (see below); `type:` frontmatter for auto-filing |
+| **Distil** | Compress to the core insight | `harness-support-triage` distils answers into `knowledge/` before closing; `/checkin` surfaces what's stale; digests summarise rather than dump |
+| **Express** | Turn stored knowledge into visible output | `/growth` surfaces the visibility gap daily — notes that haven't become a Confluence page, talk, or team share yet |
+
+**PARA → vault folder mapping:**
+
+| PARA bucket | Definition | Vault folder |
+|---|---|---|
+| Projects | Active, deadline-bound | `meetings/` (date-stamped) + `digests/` (daily drivers) |
+| Areas | Ongoing responsibility | `growth/` (career), `monitoring/` (production health) |
+| Resources | Permanent reference | `knowledge/` (decisions, architecture, how-tos) |
+| Archive | Inactive items | Digests older than 2 weeks (auto-dated) |
+
+**Zettelkasten principles applied:** every note is atomic (one idea), links prolifically via `[[wikilinks]]`, and structure emerges from the link graph rather than from folder hierarchy. The Obsidian graph view makes your mental model visible over time.
+
+**What makes the vault *active* rather than passive:**
+
+| Static Obsidian setup | Harness vault |
+|---|---|
+| You write notes manually | Skills write automatically (meetings, digests, monitoring) |
+| You search by keyword | Claude retrieves by intent across sessions |
+| Notes accumulate silently | `/checkin` surfaces what's stale each evening |
+| You remember to link | Skills link notes to Jira, PRs, calendar events on creation |
+| You decide what to publish | `/growth` flags notes with no public artifact yet |
+
+**Two-brain model** — personal and project layers stay deliberately separate:
+
+```
+Personal brain (harness vault / Obsidian)     Project brain (committed knowledge/)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Per-dev, private, never committed             Shared, committed, team-owned
+Cross-project, cross-context                  One repo scope
+Thinking layer: process before publishing     Publishing layer: team decisions & artifacts
+Feeds: career evidence, IDP, talk notes       Feeds: ADRs, runbooks, support FAQs
+Written by: Claude skills + /notes            Written by: team commits + Claude sessions
+```
+
+Knowledge is designed to flow from private → shared → published: vault note → `knowledge/` entry → Confluence / Jira. The chain is intentional and traceable.
+
+---
+
+### What the harness fully implements vs. what's partial
+
+Being honest about where the science is fully realised and where it isn't:
+
+| Claim | Status | Notes |
+|---|---|---|
+| Guides + Sensors (Fowler) | ✅ Full | `CLAUDE.md` + role-playbooks as guides; PostToolUse hook + `runs.jsonl` as sensors |
+| Maintainability regulation (Fowler) | ✅ Full | `harness-self-improve` proposes; `harness eval` scores before accepting |
+| Architecture fitness (Fowler) | ✅ Full | Compass hygiene in every `/monitoring` run |
+| Behaviour regulation (Fowler) | ⚠️ Partial | `golden-tasks.jsonl` tests routing only — functional correctness tests not yet written. Fowler calls this the hardest and least-mature dimension. |
+| Ambient Affordances (Fowler) | ✅ Full | Profile + vault + `knowledge/` eliminate re-derivation at session start |
+| Keep Quality Left (Fowler) | ✅ Full | `PreToolUse` hook fires before any outward action reaches the network |
+| Four harness properties (Weng) | ✅ Full | Workflow, evaluation, permissions, persistent state all present |
+| Seven bottlenecks (Weng) | ✅ Full | All seven are addressed — see table above |
+| CODE workflow (Forte) | ⚠️ Partial | Capture/Organise/Distil are automated; Express is surfaced as a gap by `/growth` but the actual output (Confluence page, talk) is always manual — outward actions are gated by design |
+| PARA structure (Forte) | ✅ Full | All four buckets are mapped to vault folders |
+| Zettelkasten linking (Luhmann) | ✅ Full | `[[wikilinks]]` + backlinks; structure emerges from link graph |
+| Two-brain separation | ✅ Full | Hard boundary: personal vault never committed; `knowledge/` always shared |
+
 ## Contributing
 
 - Team knowledge → add/curate Markdown in `knowledge/` (shared, committed). Personal notes → use `/notes` (private vault, not committed).
