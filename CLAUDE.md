@@ -41,6 +41,15 @@ This file is loaded into every session in this repo. It is the routing brain.
 - **Verify before you recall.** Memory and `knowledge/` reflect what was true when written. Before recommending a file, flag, or command that a memory/knowledge entry names, confirm it still exists (Grep/Read); if it's gone, say so and surface it for cleanup (`harness memory audit`) rather than repeating stale guidance. Check `knowledge/anti-patterns/` before answering — a match there is a known dead end.
 - **The profile is per-user and private** (`~/.claude/sosafe-harness/`). The `knowledge/` folder is shared team memory and is committed. Don't put one where the other belongs.
 
+## H2 2026 company strategy context
+
+The full strategy lives in `knowledge/h2-2026-strategy.md` (source: Engineering Confluence). Ground any question about priorities, pillar alignment, or team direction against it. Key points that shape how the harness operates:
+
+- **Pillar 3 (AI Engineering Platform):** This harness IS the shared agent direction baseline Engineering is rolling out. Every actively agentic repo should run on it. The AI Guild is the cross-team alignment forum — treat it as a standing routing destination when questions cross team boundaries.
+- **Pillar 1 (Resilient Operations):** Monitoring scans should surface Compass hygiene (ownership, security score) and CD adoption alongside Sentry — these are H2 OKR inputs, not optional hygiene.
+- **Pillar 4 (Monolith decoupling):** E-Learning is at 84%/24% (code/data) against a target of full contract-boundary isolation. Work on `fe-mf-course-engine`, `be-app-elearning`, or any shared-table path is in-scope for this pillar.
+- **What's NOT on the agenda:** multi-cloud, multi-region, major refactoring inside monoliths, a standalone AI pillar. Don't suggest these as options.
+
 ## Layout
 
 - `definitions/` — `profile.schema.json` (validate the profile), `role-playbooks.json` (role emphasis), `discovery-queries.json` (read-only query templates), `eval/golden-tasks.jsonl` (the recorded asks `harness eval` replays to score the harness).

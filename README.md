@@ -1,5 +1,11 @@
 # dev-ai-harness
 
+![Status: Experiment](https://img.shields.io/badge/status-experiment-orange) ![Author: karim.elshami](https://img.shields.io/badge/author-karim.elshami-blue) ![Team trial](https://img.shields.io/badge/trial-Experience%20Squads-purple)
+
+> **Experiment — July 2026.** Authored by [@karim.elshami](mailto:karim.elshami@sosafe.de) and being trialled by the Experience Squads team. Not production-hardened — expect rough edges. Feedback welcome: open an issue or ping `#dev-ai` in Slack.
+
+---
+
 A **role-aware team harness** for Claude Code — clone it, run `/setup`, and get safe, daily agentic workflows over Jira, GitHub, Slack, Calendar, Gmail, Confluence, and Compass, grounded in a profile the harness discovers about *you*.
 
 It's an **abstraction for running your SDLC and managing your work** — plan → build → review → ship, plus standups, triage, meetings, monitoring, and follow-ups — that adapts to whoever runs it. Nothing personal is committed: the per-user profile (`~/.claude/sosafe-harness/profile.json`) and the private Obsidian knowledge vault live **outside** this repo. What ships here is the reusable machinery — skills, routing, evals, observability, and safety hooks — so any engineer or EM can clone it and make it their own.

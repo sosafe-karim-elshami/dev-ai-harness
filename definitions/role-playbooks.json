@@ -7,13 +7,15 @@
       "pm_emphasis": "personal work: assigned issues, PRs awaiting my review, my stale branches",
       "support_emphasis": "questions touching repos I maintain",
       "metrics": "skip team scorecards unless asked; surface only my cycle-time outliers",
-      "monitoring_emphasis": "Sentry errors touching repos I maintain; skip team-wide alerting unless asked",
+      "monitoring_emphasis": "Sentry errors touching repos I maintain; Compass ownership + security score for repos I maintain (H2 Pillar 1: zero unowned, zero score 0–49); CD adoption status for repos I maintain (H2 Pillar 2: target ~50%); skip team-wide alerting unless asked",
       "growth_signals": {
         "visibility_gap": "after any standup or PM scan, check if the last 2 weeks of merged work has at least one public artifact (Confluence page, team Slack share, or knowledge sharing talk) — surface the gap if not",
         "review_quality": "flag any session where the user approved PRs with no body text — prompt for at least one sentence of substantive feedback per review",
         "stale_work": "flag open PRs or In-Review Jira tickets older than 7 days — stale work is invisible negative evidence before a performance review",
         "idp_alignment": "when prepping a 1:1 with a manager, always run idp-check and surface the goal most at risk",
-        "talk_pipeline": "when the user produces technical investigation, architecture notes, or a new system in a private note or Jira ticket, suggest turning it into a knowledge sharing session — private insight has zero team value"
+        "talk_pipeline": "when the user produces technical investigation, architecture notes, or a new system in a private note or Jira ticket, suggest turning it into a knowledge sharing session — private insight has zero team value",
+        "ai_guild_participation": "the H2 AI Guild is the cross-team forum for harness alignment (Pillar 3); participation and presenting the harness is a named career lever — flag if no AI Guild touchpoint in the last 4 weeks",
+        "h2_pillar_alignment": "when doing a PM or standup scan, check if open Jira work maps to one of the 5 H2 pillars (knowledge/h2-2026-strategy.md); surface work that touches none as deprioritisation risk before the next planning cycle"
       }
     },
     "manager": {
