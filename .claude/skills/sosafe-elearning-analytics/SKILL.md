@@ -2,17 +2,18 @@
 name: sosafe-elearning-analytics
 description: >
   Process skill for instrumenting Amplitude analytics in fe-lib-course-builder
-  module templates. Fetches live Confluence guidelines first, then reads the
-  canonical reference hook, before generating a hook, defining event properties,
-  or writing a Jira ticket. Trigger on "add analytics to <module>", "instrument
-  <module> events", "write analytics hook for <module>", "analytics ticket for
-  LTC-XXXX", or any request to add Amplitude tracking to a lesson template.
+  module templates. Verifies the repo's actual Amplitude init and the canonical
+  reference hook before generating a hook, defining event properties, or writing
+  a Jira ticket. Trigger on "add analytics to <module>", "instrument <module>
+  events", "write analytics hook for <module>", "analytics ticket for LTC-XXXX",
+  or any request to add Amplitude tracking to a lesson template.
 argument-hint: <module name or Jira ticket — e.g. "phishing" or "LTC-1481">
 allowed-tools: >-
   Read
   Glob
   Grep
   Bash(find:*)
+  Bash(grep:*)
   Bash(git:*)
   mcp__claude_ai_Atlassian__getConfluencePage
   mcp__claude_ai_Atlassian__getJiraIssue
@@ -23,88 +24,124 @@ effort: medium
 
 # E-Learning Amplitude Analytics
 
-A process skill: always start from Confluence and the reference hook — never
-from memory — so patterns stay in sync with how the team actually uses Amplitude.
+A process skill: always start from the **code**, not from memory and not from
+Confluence alone. Confluence describes the org-wide standard; course-builder is
+a deliberate exception to it. Getting that backwards produces confidently wrong
+tickets.
 
 ---
 
-## Step 1 — Fetch current Confluence guidelines
+## Step 1 — Verify the repo's ACTUAL Amplitude init (do this FIRST)
 
-Call `mcp__claude_ai_Atlassian__getConfluencePage` with:
-- cloudId: `d100d454-8311-44b7-b60c-c0676e3af987`
-- pageId: `3014755132`  (Amplitude Guides Best Practice, PDEV space)
-- contentFormat: `markdown`
+> **The trap.** The org-wide Confluence guidance describes the shared
+> `fe-lib-product-analytics` wrapper, which auto-attaches default properties
+> (user UUID, customer UUID, mandant/MSP UUID) when `login()` is called.
+> **`fe-lib-course-builder` does not use that wrapper.** It calls the Amplitude
+> SDK's `init()` directly, because a course library has no authenticated
+> host-app session. So the wrapper's default properties **do not apply**, and
+> assuming they do will put properties in the ticket that no code ever sets.
 
-Extract and hold:
-- **Identity properties** the wrapper auto-attaches (listed under "Tracking implementation for events")
-- **Iframe risk warning** — events sent from an uninitialised iframe lose all identity properties and become unsegmentable
-- **Cohort targeting rules** — customer UUID vs Manager ID mismatch warning; mandantUUID separates MSP from direct customers
-
-If the page has moved, search with:
+```bash
+grep -rn "init(\|setUserId\|setGroup\|identify(" \
+  ~/projects/fe-lib-course-builder/src/context/analytics.context.tsx
 ```
-mcp__claude_ai_Atlassian__searchConfluenceUsingCql
-  cql: title = "Amplitude Guides Best Practice" AND type = page
-```
+
+Then read the identity block of `src/context/analytics.context.tsx` and
+`src/hooks/use-url-params.tsx`. Record, from the code:
+
+- Which identity calls actually fire, and what guards them
+- Where each identity value comes from (URL param? config? context?)
+- Whether each is an event **property** or an Amplitude **group** — these have
+  different semantics downstream and are easy to conflate
+
+**As of the last verification (2026-09-08), course-builder sets exactly two:**
+
+| Call | Source | Semantics |
+|---|---|---|
+| `setUserId(user_uuid)` | lesson URL param `user_uuid`, forwarded by `be-ms-content-dispatcher` (LTC-1452). Guarded by `if (userUuid)`. | User identity |
+| `setGroup('customer', customer_uuid)` | lesson URL param `customer_uuid` | Amplitude **group**, explicitly *not* an event property. Enables per-customer funnel segmentation in reporting; group-scoped cohorts **cannot** be used for guide targeting. |
+
+There is **no mandant/MSP dimension** in course-builder, by design. Don't add it
+and don't list it in a ticket as a gap.
+
+Re-verify rather than trusting this table — it is a snapshot, not a contract.
 
 ---
 
 ## Step 2 — Read the canonical reference hook
 
-The reference is `src/hooks/use-vishing-analytics.ts` in `fe-lib-course-builder`.
+`src/hooks/use-vishing-analytics.ts` is the pattern to mirror.
 
-```bash
-find ~/projects/fe-lib-course-builder/src/hooks -name "use-vishing-analytics.ts" | head -1
-```
-
-Read the file and extract:
-- The guard pattern (`if (!isAnalyticsEnabled) return`)
-- How `commonProps` is built (`useCallback` over `course.folderName`, `course.language`, `moduleVersion`)
-- The `useCallback` dependency array shape (`[isAnalyticsEnabled, commonProps]`)
-- Any existing ref-stabilisation examples for effect-bound trackers
-
-Also grep for any existing analytics hook for the target module to avoid duplication:
 ```bash
 find ~/projects/fe-lib-course-builder/src/hooks -name "use-*-analytics.ts"
 ```
 
+Extract:
+- The guard (`if (!isAnalyticsEnabled) return`)
+- How `commonProps` is built and what it contains
+- The `useCallback` dependency array shape
+- Any ref-stabilisation for effect-bound trackers
+- Confirm no hook already exists for the target module
+
 ---
 
-## Step 3 — Define the property taxonomy
+## Step 3 — Fetch the Confluence guidance (context, not gospel)
 
-Structure properties in three layers. The Confluence page (Step 1) dictates Layer 1;
-the reference hook (Step 2) dictates Layer 2; the module's interaction model dictates Layer 3.
+`mcp__claude_ai_Atlassian__getConfluencePage`
+- cloudId: `d100d454-8311-44b7-b60c-c0676e3af987`
+- pageId: `3014755132` — *Amplitude Guides Best Practice*, PDEV space
+- contentFormat: `markdown`
 
-### Layer 1 — Auto-attached (from Confluence)
-These travel with every event when the wrapper initialises correctly.
-List them explicitly in the Jira ticket so the team knows they're available for
-segmentation without any code changes. Typically: `userUUID`, `customerUUID`,
-`mandantUUID` — but verify against the live Confluence page in case they changed.
+Useful for org-wide rules that **do** apply regardless of init path:
+- Customer UUID vs Manager ID mismatch (Amplitude only ever knows UUIDs)
+- Groups are reporting/analysis-scoped and never available as guide-targeting options
+- Event-based targeting is preferred over manual cohorts
 
-**Invariant:** This module runs inside a SCORM iframe. Confirm the wrapper
-initialises before events fire — if not, all three properties are silently
-missing and the data becomes unsegmentable. Unit tests cannot catch this.
-Staging verification is the only gate (see Step 5).
+Treat anything the page says about *auto-attached default properties* as
+wrapper-lib behaviour — check it against Step 1 before repeating it.
 
-### Layer 2 — commonProps (from reference hook)
-Mirror the reference hook exactly. Typically:
+If the page has moved:
+```
+searchConfluenceUsingCql → cql: title = "Amplitude Guides Best Practice" AND type = page
+```
+
+---
+
+## Step 4 — Define the property taxonomy
+
+### Layer 1 — Identity (set once at init, never per event)
+Report exactly what Step 1 found. State explicitly that identity must **not** be
+duplicated as event properties — the code comments in `analytics.context.tsx`
+and `use-vishing-analytics.ts` both say so.
+
+Name the real failure mode: identity depends on **URL params supplied by
+`be-ms-content-dispatcher`**, not on the analytics hook. If `user_uuid` is
+missing, every event still fires and every unit test still passes — the data is
+just anonymous and the funnel reads 0%. That is what happened before LTC-1452,
+and per that ticket **legacy data cannot be backfilled**, so identity must be
+correct before a module ships.
+
+### Layer 2 — commonProps (mirror the reference hook)
 - `moduleName` — `course?.folderName ?? 'unknown'`
 - `moduleLanguage` — `course?.language ?? 'unknown'`
-- `moduleVersion` — hardcoded integer; bump when the event schema has a breaking change
+- `moduleVersion` — hardcoded integer (vishing uses `7`); bump on a breaking
+  event-schema change
 
 ### Layer 3 — Event-specific props
-For each event, identify:
-1. The **payload properties** (name, type, allowed values)
-2. The **segmentation question** each property answers (e.g. "do Finance learners miss more phishing?")
-3. Whether the event can fire from inside a `useEffect` (if so: ref-stabilise the tracker)
+Per event, identify:
+1. Payload properties (name, type, allowed values)
+2. The segmentation question each answers — e.g. "do Finance learners miss more
+   phishing than IT learners?"
+3. Whether it can fire from a `useEffect` (if so: ref-stabilise)
 
-Prioritise properties that enable **customer-level** and **role/persona-level** segmentation
-over purely individual-learner properties — those are the ones that feed product decisions.
+Prefer properties that support **customer-group** and **role/persona** slicing —
+those feed product decisions. Purely per-learner properties rarely do.
 
 ---
 
-## Step 4 — Generate the hook or ticket
+## Step 5 — Generate the hook or ticket
 
-### Hook (if implementing)
+### Hook
 
 ```ts
 export const use<Module>Analytics = () => {
@@ -131,69 +168,77 @@ export const use<Module>Analytics = () => {
     [isAnalyticsEnabled, commonProps],
   );
 
-  // If tracker fires inside a useEffect, ref-stabilise:
+  // If the tracker fires inside a useEffect, ref-stabilise:
   // const trackRef = useRef(track<Action>);
   // useEffect(() => { trackRef.current = track<Action>; });
 
-  return { track<Action>, ... };
+  return { track<Action> };
 };
 ```
 
 Event names go in `src/context/analytics.context.tsx` → `ANALYTICS_EVENTS`.
-Format: `PascalCase`, prefix `Elearning<Module>`, suffix the interaction
-(e.g. `ElearningPhishingRoleSelected`).
+Format: `PascalCase`, `Elearning<Module><Action>`.
 
-### Jira ticket (if writing)
+### Jira ticket
 
-Use this section structure (sourced from LTC-1481):
+Section structure (as used on LTC-1481):
 
 ```
 ## Context
-Why this matters. Name the primary metric. State the dependency.
+Why it matters. Name the primary metric. State the dependency.
 
 ## Scope
-- Files to create/modify (bullet list)
-- Events to add (names only; detail goes in ## Properties)
+Files to create/modify. Event names only — detail goes in ## Properties.
 
 ## Properties
-### Auto-attached (segmentation foundation)
-List the properties from Step 1 + the SCORM iframe warning.
+### Identity — attached at init, NOT per event
+Exactly what Step 1 verified + "do not duplicate as event properties"
++ "these are the whole identity model; wrapper-lib defaults do not apply here".
+
+### The failure mode to guard
+Missing URL param → anonymous data → 0% funnel → unbackfillable.
 
 ### commonProps
-moduleName, moduleLanguage, moduleVersion — from Step 2.
-
-### <EventName> (one sub-section per event)
-Typed properties + one-line segmentation rationale per property.
+### <EventName>  (one sub-section per event, typed + segmentation rationale)
 
 ## Acceptance criteria
-- Guard / commonProps / deps pattern (mirror reference hook)
-- Ref-stabilise any tracker that fires from an effect
-- Unit tests: enabled AND disabled cases for every tracker
+- Guard / commonProps-first / deps pattern (mirror reference hook)
+- Ref-stabilise effect-bound trackers
+- Do NOT add identity values as event properties
+- Unit tests: enabled AND disabled case per tracker
 - "hook return value" toEqual block includes every new function
-- Staging: confirm auto-attached identity props present in event stream (see ## Staging)
+- Staging verification completed before close
 
 ## Staging verification
-Open the Amplitude event stream in a staging playthrough.
-Fire each new event at least once.
-Confirm <userUUID>, <customerUUID>, <mandantUUID> are present on at least one event.
-Do not close the ticket without this check.
+(see Step 6)
 
 ## Design reference
-Link to dev-brief PR or Figma. If no new UI: state that explicitly.
+Dev-brief PR or Figma. If no new UI, say so explicitly.
 ```
 
 ---
 
-## Step 5 — Staging verification checklist
+## Step 6 — Staging verification
 
-Before the ticket is closed or the PR merged:
+Unit tests cannot catch missing identity. This is the only gate.
 
-1. Run the module in a staging environment (not Storybook — the SCORM wrapper must be active)
-2. Open the Amplitude event stream or debugger
-3. Fire each new event
-4. Confirm the auto-attached identity properties from Step 1 are present on at least one event
-5. If any are missing: the wrapper did not initialise in the iframe. Stop. Do not ship.
+1. Play the module in **staging, not Storybook** — it needs a real
+   dispatcher-built lesson URL.
+2. Confirm the lesson URL carries `user_uuid` **and** `customer_uuid`.
+3. In Amplitude, confirm a fired event has a real **User ID** (not just the
+   random device ID) and is attributed to the **Customer** group.
+4. If User ID is missing: `be-ms-content-dispatcher` is not forwarding
+   `user_uuid`. **Stop.** That is a backend dependency, not a frontend bug, and
+   shipping anyway produces anonymous data that cannot be backfilled.
 
-**Why this is non-negotiable:** vishing analytics once reported 0% engagement
-because identity was not attached. All unit tests passed. The error was invisible
-until a staging playthrough.
+---
+
+## Known-wrong answers (don't repeat these)
+
+- ❌ "`userUUID`, `customerUUID` and `mandantUUID` are auto-attached to every
+  event." — That is the `fe-lib-product-analytics` wrapper. Course-builder does
+  raw `init()` and sets only user ID + customer group.
+- ❌ "`customerUUID` is an event property." — It is a `setGroup` group. It won't
+  appear in the payload and can't drive guide targeting.
+- ❌ "Identity breaks when the SCORM iframe doesn't initialise the wrapper." —
+  The real dependency is the dispatcher forwarding URL params.
