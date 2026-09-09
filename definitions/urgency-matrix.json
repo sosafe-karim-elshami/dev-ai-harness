@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "description": "Shared urgency/priority classifier for the harness. Referenced by harness-checkin, /standup, and `harness dashboard` so every surface classifies and orders work the same way instead of ad-hoc sorting by due date. Adapted from the July 2026 'Jarvis' Engineering Show & Tell POC (urgency matrix: actionable vs. knowledge, P1/P2, leadership flag). Classification is read-only — it never triggers a mutation.",
+  "kinds": {
+    "actionable": "Needs an action from the user (reply, review, fix, decide, create). Belongs on the action list.",
+    "to_review": "Background reading to stay informed; do if time permits. Not a commitment.",
+    "knowledge": "Reference/context only — file it in the vault, no action expected."
+  },
+  "priorities": {
+    "P1": {
+      "meaning": "Do today. Blocking someone, customer/production impact, or a hard deadline within 24h.",
+      "signals": ["overdue", "production_incident", "leadership_request", "blocks_teammate", "due_within_24h", "external_stakeholder_waiting"]
+    },
+    "P2": {
+      "meaning": "Do this week. Important but not blocking; deadline within the sprint.",
+      "signals": ["due_this_week", "open_pr_awaiting_my_review", "sprint_committed", "stale_gt_3_days"]
+    },
+    "P3": {
+      "meaning": "Backlog / when time permits. No near deadline and no dependency on it.",
+      "signals": ["no_due_date", "informational", "nice_to_have"]
+    }
+  },
+  "flags": {
+    "leadership": {
+      "meaning": "Requested by or visible to leadership (EM / skip-level / staff / exec). Bump one priority level and surface first.",
+      "detect": "requester or @-mention is a manager, lead, or exec in the profile's org/team context"
+    },
+    "external": {
+      "meaning": "Involves someone outside the org domain. Higher stakes and slower to unblock.",
+      "detect": "attendee or requester email domain != the company domain"
+    },
+    "overdue": {
+      "meaning": "Past its due date. Treat as P1 until cleared.",
+      "detect": "due < today"
+    }
+  },
+  "ordering": [
+    "items flagged leadership or overdue first",
+    "then by priority P1 -> P2 -> P3",
+    "then by due date ascending (undated last)",
+    "within a tie: actionable before to_review before knowledge"
+  ],
+  "rendering": {
+    "priority_markers": { "P1": "🔴", "P2": "🟡", "P3": "⚪" },
+    "flag_markers": { "leadership": "⭐", "external": "🌐", "overdue": "⏰" },
+    "note": "Prefix each item with its priority marker, then append any flag markers. Keep one line per item."
+  }
+}

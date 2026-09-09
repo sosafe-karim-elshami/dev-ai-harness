@@ -29,6 +29,25 @@ A safe, draft-only reflection loop for the harness. Adapted from the
 self-improving-agent pattern (auto-memory curation) but scoped to *this* harness
 and gated by the guard hook. Read `~/.claude/sosafe-harness/profile.json` first.
 
+## The loop is red/green TDD over the harness itself
+
+Each self-improve cycle is a test-driven development loop where golden tasks in
+`definitions/eval/golden-tasks.jsonl` are the test suite and `harness eval` is the
+test runner:
+
+- **Red** — identify failing golden tasks in the latest scorecard. A proposal
+  without a failing task as its target has no verifiable impact.
+- **Green** — apply the minimal skill/routing change that makes those tasks pass.
+- **Never skip verifying red.** Before proposing a fix, confirm the task actually
+  fails in the current scorecard. A "fix" for a passing task wastes a cycle and
+  risks regression.
+- **Close the loop with a green run.** After applying, always re-run `harness eval`
+  and confirm the targeted tasks now pass. If they don't, the change was wrong —
+  record it in `knowledge/anti-patterns/` and try again.
+- **Adding new golden tasks follows the same discipline:** write the task, run
+  `harness eval` to confirm it fails (red), then make the implementation change
+  to pass it (green). A task you never saw fail is a test you can't trust.
+
 ## What it does
 
 1. **Gather signal (read-only):**
@@ -39,17 +58,17 @@ and gated by the guard hook. Read `~/.claude/sosafe-harness/profile.json` first.
    - Injected memory in `~/.claude/sosafe-harness/memory/*.md`, and the negative-results store `knowledge/anti-patterns/` — never re-propose something recorded there as already tried and failed.
    - The `knowledge/` folder and the `.claude/skills|commands` in the repo.
    - `git log`/`git diff` for what changed recently (never write).
-2. **Verify the last change landed.** Diff the newest scorecard against the previous one. Did the last accepted proposal actually move the numbers?
+2. **Verify the last change landed (diff scorecards):** compare the newest and previous `eval-*.md`. Did the last accepted proposal actually move the numbers?
    - **Improved** → note the win.
-   - **Flat or regressed** → the change was reward-hacking or noise. Recommend reverting it and record it in `knowledge/anti-patterns/` so it isn't re-proposed. This is the loop's guard against diversity collapse and gaming the proxy.
-3. **Mine weaknesses (diagnose):** rank issues by **measured eval delta**, not by vibes — start with the golden tasks that are *failing* and the dimension with the lowest score. Then add qualitative friction (repetition, stale routing, skills whose triggers/allowed-tools don't match use, missing knowledge entries). A proposal with no plausible eval impact is lowest priority.
-4. **Propose (drafts):** output a prioritized list. For each: the file to touch, the exact edit or a tight diff sketch, the failing task/dimension it targets, and the expected scorecard movement. Group by impact.
-5. **Self-document:** offer to distill durable lessons into a new/updated `knowledge/` entry — wins to `knowledge/`, losses to `knowledge/anti-patterns/` (committed, team-private, PR-reviewed). Follow the respective README format.
+   - **Flat or regressed** → the change was reward-hacking or noise. Recommend reverting it and record it in `knowledge/anti-patterns/` so it isn't re-proposed.
+3. **Mine weaknesses (diagnose):** rank issues by **measured eval delta** — start with failing golden tasks, then the dimension with the lowest score. A proposal with no failing task as its target is lowest priority.
+4. **Propose (drafts):** output a prioritized list. For each: the file to touch, the exact edit or diff sketch, the failing task it targets, and the expected scorecard movement. Group by impact.
+5. **Self-document:** offer to distill durable lessons into a new/updated `knowledge/` entry — wins to `knowledge/`, losses to `knowledge/anti-patterns/`. Follow the respective README format.
 
 ## Applying proposals
 
 - Only when the user says "apply": make the **local file edits** described. Do **not** `git add`, `git commit`, `git push`, or open a PR — leave that to the human (the guard hook enforces this for outward actions).
-- **Close the loop:** after applying, recommend the user re-run `harness eval` so the next scorecard measures whether the change actually helped. That scorecard becomes the input to the next self-improve pass (the `prompt → context → workflow → harness code` optimization chain, with a real evaluator at the end of it).
+- **Always recommend `harness eval` after applying** — the green run closes the TDD loop. That scorecard becomes the input to the next self-improve pass.
 - Optionally publish a generated overview to a private Confluence space via `createConfluencePage` — **gated, off unless explicitly asked**.
 
 ## Hard rules

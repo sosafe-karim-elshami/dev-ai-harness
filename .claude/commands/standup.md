@@ -8,11 +8,11 @@ Composite, **read-only** daily driver: project status + support scan + today's m
    items, and docs-to-update that the overnight or earlier cron runs surfaced.
    Show these as the starting point for today rather than re-deriving them.
 3. Run the sections in that order, gathering only (no mutations):
-   - **PM** — invoke `harness-pm` for the status summary + PR tracking (+ team metrics via `compass-analyst` for managers/staff). Skip the "apply fixes" step here.
-   - **Support** — invoke `harness-support-triage` step 1 only: surface the unanswered queue (no drafting unless asked).
-   - **Meetings** — invoke `harness-meetings` prep for today's calendar events (agenda highlights, not full notes).
-   - **Monitoring** — if `monitoring_scan` is in this role's `standup_order` and `profile.integrations` has any monitoring tool configured, invoke `harness-monitoring` for a short production-health read (firing alerts / spiking Sentry issues). Skip silently if nothing is configured.
-4. Produce one consolidated digest, role-ordered, with links.
+   - **PM** — call the **`harness-pm`** skill (Skill tool) for the status summary + PR tracking (+ team metrics via `compass-analyst` for managers/staff). Skip the "apply fixes" step here.
+   - **Support** — call the **`harness-support-triage`** skill (Skill tool), step 1 only: surface the unanswered queue (no drafting unless asked).
+   - **Meetings** — call the **`harness-meetings`** skill (Skill tool) for today's calendar events (agenda highlights, not full notes).
+   - **Monitoring** — if `monitoring_scan` is in this role's `standup_order` and `profile.integrations` has any monitoring tool configured, call the **`harness-monitoring`** skill (Skill tool) for a short production-health read (firing alerts / spiking Sentry issues). Skip silently if nothing is configured.
+4. Produce one consolidated digest, role-ordered, with links. **Within each section, classify and order items by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`** (kind: actionable/to_review/knowledge; priority P1/P2/P3; flags leadership/external/overdue) and prefix each line with its priority + flag markers, so the digest reads as a triage list rather than a raw dump.
 5. **Save the digest** to the Obsidian vault so it's browsable and cross-linked: resolve `$VAULT` via `jq -r '.vaultPath' ~/.claude/sosafe-harness/config.json`, then write the digest to `$VAULT/digests/<YYYY-MM-DD>.md` with frontmatter (`type: digest`, `tags: [harness, standup]`, `updated: <date>`). Link out to relevant `[[meetings/...]]` and `[[memory/...]]` notes, and add a one-line `[[wikilink]]` under "## Recent" in `$VAULT/index.md`. If `vaultPath` is missing/empty, skip this step silently. Writing a local note is allowed — it changes no remote state.
 6. End with: "Want me to draft support replies, prep a specific meeting, or fix any Jira hygiene? I'll confirm before anything is sent."
 

@@ -44,10 +44,11 @@ and `harness run "say hi"` should return a reply.
 | `harness` | Branded interactive prompt (`:use <ctx>` to switch, `:quit` to exit). |
 | `harness run "<msg>"` | One-off ask in the default context. |
 | `harness <context> "<msg>"` | Ask within a named, persistent context. |
-| `harness standup \| triage \| meeting` | Run a harness slash command — each its own resumable context. |
+| `harness standup \| triage \| meeting \| groom` | Run a harness slash command — each its own resumable context. |
+| `harness groom ["<scope>"]` | Backlog grooming pass: sweep (harness-pm hygiene) → quality-check → size → split, ordered by the urgency matrix. Reuses `sosafe-ticket-loop` + `sosafe-planning`. Read-only; Jira writes are batched + confirmed. Scope by board/epic/sprint/ticket. |
 | `harness monitoring [--digest]` | Read-only production health: Sentry / Datadog / Amplitude (whatever's configured). |
 | `harness followup ["<meeting>"]` | Ingest a meeting's Gemini transcript and draft action items (meetings follow-up flow). |
-| `harness dashboard [--digest]` | Role-ordered dev dashboard: PRs, Jira, meetings + open follow-ups, support. Read-only. |
+| `harness dashboard [--digest] [--cached]` | Role-ordered dev dashboard: PRs, Jira, meetings + open follow-ups, support. Read-only. Items are classified + ordered by `definitions/urgency-matrix.json`. Each fresh run caches a structured JSON snapshot; `--cached` re-renders that snapshot instantly without calling the model (fast + resilient to model drift). |
 | `harness self-improve [--digest]` | Read-only reflection that proposes harness improvements as drafts. |
 | `harness eval [id] [--no-save]` | Replay the golden tasks in `definitions/eval/golden-tasks.jsonl` headless and score routing / read-only / citations / grounding. Writes a scorecard to `digests/`; exit code is non-zero if any task fails. Optional `id` runs a subset. |
 | `harness memory audit [--deep] [--stale=N]` | Read-only lifecycle scan of CLI memory + vault + `knowledge/`: flags stale (default > 120d) and near-duplicate entries; `--deep` adds an LLM contradiction pass. Never deletes. |

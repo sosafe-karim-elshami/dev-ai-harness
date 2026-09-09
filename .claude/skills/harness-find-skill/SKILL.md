@@ -1,9 +1,9 @@
 ---
-name: find-skill
-description: Given a task or intent, finds the most relevant locally installed skill(s) — spanning harness, SoSafe marketplace, and global skills. Use when asked "which skill should I use for X?", "is there a skill for X?", "what command handles X?", or when the right skill is unclear.
+name: harness-find-skill
+description: Given a task or intent, finds the most relevant locally INSTALLED skill(s) — spanning harness, SoSafe marketplace, and global skills. Use when asking "which installed skill handles X?" or "what harness command does X?". Distinct from find-skills (which discovers skills to install from the ecosystem).
 ---
 
-# Find Skill
+# Harness Find Skill
 
 Search all locally installed skills and return the best match(es) for the described task.
 

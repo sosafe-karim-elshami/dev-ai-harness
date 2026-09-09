@@ -13,6 +13,8 @@ This file is loaded into every session in this repo. It is the routing brain.
 
 ## Routing
 
+**How to route:** when the table says "route to X", call X via the **Skill tool** (or the slash command). Never execute X's steps inline. The Skill tool invocation IS the routing — direct tool calls bypass it.
+
 | User intent | Route to |
 |---|---|
 | "set me up", first run, refresh my context | `/setup` → `harness-onboarding` |
@@ -24,22 +26,26 @@ This file is loaded into every session in this repo. It is the routing brain.
 | prep/run a meeting, agenda, action items | `/meeting` → `harness-meetings` |
 | transcribed/finished meeting, "ingest my Gemini notes", follow up on a meeting | `/meeting` (follow-up mode) → `harness-meetings` |
 | "show my dashboard", dev status at a glance | `harness dashboard` (CLI) → composes `harness-pm` + `harness-support-triage` + `harness-meetings` |
+| groom/refine the backlog, "get my tickets ready", sprint prep, "is this ticket ready?", split a too-big ticket | `/groom` → `harness-groom` (reuses `harness-pm` hygiene + `sosafe-ticket-loop` quality/estimate/decompose + `sosafe-planning`) |
 | "self-improve", reflect and propose harness improvements | `/self-improve` → `harness-self-improve` |
 | end-of-day wrap-up, "what happened today", "prepare for tomorrow", "collect my action items", "align my docs", 2-hour autonomous check-in | `/checkin` → `harness-checkin` |
-| career growth, visibility gap, IDP check, "how do I level up?", "what should I present?", 1:1 with growth/salary focus, knowledge sharing prep | `harness-growth` |
+| career growth, visibility gap, IDP check, "how do I level up?", "what should I present?", "turn work into a talk/slides", "slide deck", 1:1 with growth/salary focus, knowledge sharing prep | `harness-growth` |
 | capture/find a note, "add this to my notes", "what did I write about X" | `/notes` (global) → the Obsidian vault |
 | create a PR / branch | reuse `sosafe-pr-workflow` (don't reimplement) |
 | break work into Jira tickets | reuse `sosafe-planning` |
 | security / architecture review | reuse `sosafe-security` / `sosafe-architecture` |
+| "implement this ticket", "build this task", "code LTC-XXXX", autonomous code → PR | reuse `sosafe-ai-harness-task-to-pr` → `/sosafe-ai-harness-task-to-pr:implement-task <key or description>` (DX harness plugin; runs developer → reviewer → tester pipeline, only opens PR after checks pass) |
+| "generate a CLAUDE.md", "set up AI context for this repo" | reuse `sosafe-ai-harness-claude-md` → `/sosafe-ai-harness-claude-md:generate-claude-md` (DX harness plugin; introspects repo and writes a grounded CLAUDE.md — run this first in any new repo) |
 
 ## Principles (non-negotiable)
 
 - **Read-mostly by default.** Every workflow reads, summarizes, and drafts. It does not change remote state on its own.
 - **Confirm before any outward/destructive action.** Posting to Slack, transitioning/creating/commenting on Jira, editing Confluence, sending email, `git push`, `gh pr create|merge`. Batch them and ask **once**, naming every target. A `PreToolUse` hook (`.claude/hooks/confirm-outward-actions.sh`) enforces this independently of prose — if you ever find it bypassed, stop and surface it.
-- **Reuse the marketplace, don't rebuild it.** Metrics → `compass-analyst`. PRs → `sosafe-pr-workflow`. Ticket creation → `sosafe-planning`. Reviews → `sosafe-security`/`sosafe-architecture`.
+- **Reuse the marketplace, don't rebuild it.** Metrics → `compass-analyst`. PRs (human-in-the-loop) → `sosafe-pr-workflow`. Ticket creation → `sosafe-planning`. Reviews → `sosafe-security`/`sosafe-architecture`. Autonomous code → PR pipeline → `sosafe-ai-harness-task-to-pr`. Repo CLAUDE.md generation → `sosafe-ai-harness-claude-md`.
 - **Ground every answer.** Cite sources — code in `workspace/`, `knowledge/` entries, Confluence pages, Jira keys, Slack permalinks. Never invent.
 - **Verify before you recall.** Memory and `knowledge/` reflect what was true when written. Before recommending a file, flag, or command that a memory/knowledge entry names, confirm it still exists (Grep/Read); if it's gone, say so and surface it for cleanup (`harness memory audit`) rather than repeating stale guidance. Check `knowledge/anti-patterns/` before answering — a match there is a known dead end.
 - **The profile is per-user and private** (`~/.claude/sosafe-harness/`). The `knowledge/` folder is shared team memory and is committed. Don't put one where the other belongs.
+- **`harness-*` naming disambiguation:** `harness-developer`, `harness-reviewer`, and `harness-tester` are **internal sub-agents** spawned by `sosafe-ai-harness-task-to-pr:implement-task`. They are NOT harness skills and are NOT routable directly — never invoke them by name. All user-facing code-generation entry points go through `implement-task`.
 
 ## H2 2026 company strategy context
 

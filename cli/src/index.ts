@@ -43,6 +43,7 @@ const SLASH: Record<string, string> = {
   triage: "/triage",
   meeting: "/meeting",
   monitoring: "/monitoring",
+  groom: "/groom",
   harness: "/harness",
   // Follow-up sugar: jump straight into the meetings follow-up flow (ingest the
   // Gemini transcript for the most recent/named meeting, then draft action items).
@@ -334,8 +335,9 @@ function usage(): number {
       `  harness <context> "<message>"   ${c.dim("ask within a named, persistent context")}\n` +
       `  harness standup|triage|meeting  ${c.dim("run a harness slash command (its own context)")}\n` +
       `  harness monitoring [--digest]   ${c.dim("Sentry/Datadog/Amplitude health (read-only)")}\n` +
+      `  harness groom ["<scope>"]       ${c.dim("groom the backlog: sweep, quality-check, size, split (gated)")}\n` +
       `  harness followup ["<meeting>"]  ${c.dim("ingest a meeting transcript + draft action items")}\n` +
-      `  harness dashboard [--digest]    ${c.dim("role-ordered dev dashboard (PRs/Jira/meetings/support)")}\n` +
+      `  harness dashboard [--cached]    ${c.dim("role-ordered dev dashboard; --cached re-renders last snapshot fast")}\n` +
       `  harness self-improve [--digest] ${c.dim("read-only reflection: propose harness improvements")}\n` +
       `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
       `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +

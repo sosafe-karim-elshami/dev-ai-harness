@@ -31,6 +31,8 @@ actions itself — it dispatches.
 
 ## Routing
 
+**How to route:** when the table says "route to X", call X via the **Skill tool** (or the slash command). Never execute X's steps inline. The Skill tool invocation IS the routing — direct tool calls bypass it.
+
 | User intent | Route to |
 |---|---|
 | "set me up", first run, refresh my context | `/setup` → `harness-onboarding` |
@@ -73,3 +75,6 @@ actions itself — it dispatches.
 - `${CLAUDE_PLUGIN_ROOT}/knowledge/` — the harness's baseline team memory shipped
   with the plugin. Growing it (as `harness-support-triage` does) is committed back
   to the harness repo via PR, since the installed plugin cache is replaced on update.
+
+When answering any question about standup ordering or role emphasis, always cite
+`definitions/role-playbooks.json` by path in your answer.

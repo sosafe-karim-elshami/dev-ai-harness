@@ -25,6 +25,9 @@ export const sessionsPath = (): string => join(configDir(), "sessions.json");
 export const memoryDir = (): string => join(configDir(), "memory");
 export const digestsDir = (): string => join(configDir(), "digests");
 export const graphPath = (): string => join(configDir(), "graph.json");
+export const cacheDir = (): string => join(configDir(), "cache");
+/** Last-known-good structured dashboard snapshot, for fast `--cached` renders. */
+export const dashboardCachePath = (): string => join(cacheDir(), "dashboard.json");
 
 export function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

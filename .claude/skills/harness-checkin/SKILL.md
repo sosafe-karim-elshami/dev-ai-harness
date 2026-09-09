@@ -163,6 +163,10 @@ For each past meeting with notes:
 - Extract items with: **owner**, **what**, **due**, **target**
   (`jira:NEW | jira:KEY | slack:#channel | me`).
 - Tag items owned by the profile user as `[me]`; tag others by name.
+- **Classify each item** with `definitions/urgency-matrix.json`: set its
+  **kind** (`actionable | to_review | knowledge`), **priority** (`P1/P2/P3`),
+  and any **flags** (`leadership | external | overdue`). This drives ordering
+  everywhere below — don't fall back to sorting by due date alone.
 
 Accumulate into the **master action list**.
 
@@ -217,9 +221,12 @@ tags: [harness, daily]
 
 ## My action items
 
-<!-- Overdue first, then by due date, then undated. Bold the top blocker. -->
-- [ ] **<most urgent item>** — due: <date|time> — <context>
-- [ ] <next item> — due: <date|none>
+<!-- Order by definitions/urgency-matrix.json: leadership/overdue first, then
+     P1 → P2 → P3, then due date. Prefix each with its priority marker
+     (🔴 P1 / 🟡 P2 / ⚪ P3) and append flag markers (⭐ leadership / 🌐 external /
+     ⏰ overdue). Bold the top blocker. -->
+- [ ] 🔴 ⭐ **<most urgent item>** — due: <date|time> — <context>
+- [ ] 🟡 <next item> — due: <date|none>
 
 ---
 

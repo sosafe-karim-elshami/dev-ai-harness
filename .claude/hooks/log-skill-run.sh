@@ -17,6 +17,7 @@ mkdir -p "$(dirname "$log")" 2>/dev/null || exit 0
 
 skill="$(printf '%s' "$input" | jq -r '.tool_input.skill // empty' 2>/dev/null)"
 [ -z "$skill" ] && exit 0   # not a skill invocation we can attribute
+skill="${skill#dev-ai-harness:}"   # normalize: strip plugin namespace prefix
 
 session="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)"
 
