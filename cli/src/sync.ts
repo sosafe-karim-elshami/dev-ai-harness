@@ -56,5 +56,20 @@ export function sync(): number {
   if (plugins.code === 0) ok("Marketplaces up to date (restart Claude Code to apply plugin changes).");
   else warn("`claude plugin marketplace update` did not complete cleanly (see above).");
 
-  return pull.code === 0 && build === 0 && plugins.code === 0 ? 0 : 1;
+  // Routing drift is cheap to detect and expensive to miss, so gate it here too.
+  const reg = run("node", [join(repo, "cli", "dist", "index.js"), "registry", "check"], repo);
+  if (reg.code === 0) ok("Routing registry consistent.");
+  else {
+    if (reg.out) process.stdout.write("  " + reg.out.replace(/\n/g, "\n  ") + "\n");
+    warn("Routing registry has drifted — run `harness registry sync`.");
+  }
+
+  // Ownership and dependencies move without anyone updating a profile, so re-derive
+  // the system map on every sync. Non-fatal: a stale map beats a failed sync.
+  info("Re-deriving the system map from GitHub");
+  const sys = run("node", [join(repo, "cli", "dist", "index.js"), "graph", "build", "--system"], repo);
+  if (sys.code === 0) ok("system.json refreshed.");
+  else warn("Could not refresh system.json (needs `gh auth login`); the existing map is unchanged.");
+
+  return pull.code === 0 && build === 0 && plugins.code === 0 && reg.code === 0 ? 0 : 1;
 }

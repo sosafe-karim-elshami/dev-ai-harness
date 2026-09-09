@@ -35,6 +35,8 @@ import { dashboard } from "./dashboard.js";
 import { selfImprove } from "./self-improve.js";
 import { evaluate } from "./eval.js";
 import { registry } from "./registry.js";
+import { doctor } from "./doctor.js";
+import { system } from "./system.js";
 import { metrics } from "./observability.js";
 import { graphPath } from "./paths.js";
 
@@ -81,6 +83,8 @@ async function main(argv: string[]): Promise<number> {
       return evaluate(rest);
     case "registry":
       return registry(rest);
+    case "doctor":
+      return doctor(rest);
     case "metrics":
       return metrics(rest);
     case "mcp":
@@ -216,6 +220,9 @@ async function cmdGraph(rest: string[]): Promise<number> {
   const [sub, ...args] = rest;
   switch (sub) {
     case "build": {
+      // `--system` derives the ownership/dependency map from GitHub rather than
+      // from the self-reported profile, and writes system.json.
+      if (args.includes("--system")) return system(args);
       const g = buildStructural();
       if (args.includes("--infer")) {
         info("Inferring semantic links (LLM pass)…");
@@ -344,6 +351,7 @@ function usage(): number {
       `  harness self-improve [--digest] ${c.dim("read-only reflection: propose harness improvements")}\n` +
       `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
       `  harness registry check|sync|show ${c.dim("routing single source of truth: drift check, regen CLAUDE.md, tiers")}\n` +
+      `  harness doctor [--json]         ${c.dim("probe which capabilities this environment can actually reach")}\n` +
       `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +
       `  harness sessions                ${c.dim("list saved contexts + session ids")}\n` +
       `  harness reset <context>         ${c.dim("forget a context's session")}\n` +
@@ -352,6 +360,7 @@ function usage(): number {
       `  harness sync                    ${c.dim("git pull harness + refresh marketplaces")}\n` +
       `  harness install-cron [--apply]  ${c.dim("schedule weekday digest runs")}\n` +
       `  harness graph build [--infer]   ${c.dim("build the context graph (+ inferred links)")}\n` +
+      `  harness graph build --system    ${c.dim("derive ownership + deps from GitHub → system.json")}\n` +
       `  harness graph query|neighbors|path|explain   ${c.dim("query the context graph")}\n` +
       `  harness mcp                     ${c.dim("run the context-graph MCP server (stdio)")}\n`,
   );

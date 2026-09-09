@@ -23,6 +23,7 @@ import { join } from "node:path";
 import { getHarnessRepo, digestsDir, ensureDir } from "./paths.js";
 import { runClaude } from "./claude.js";
 import { banner, c, info, ok, warn, fail } from "./ui.js";
+import { checkRegistry } from "./registry.js";
 
 interface GoldenTask {
   id: string;
@@ -139,6 +140,18 @@ export async function evaluate(rest: string[]): Promise<number> {
   }
 
   banner();
+
+  // Static invariants first. Replaying golden tasks costs real tokens, and routing
+  // drift makes every routing score meaningless — so fail fast and cheap instead of
+  // scoring a harness whose routing table doesn't match the skills on disk.
+  const drift = checkRegistry(harnessRepo).filter((f) => f.level === "error");
+  if (drift.length) {
+    for (const d of drift) fail(d.msg);
+    fail(`Registry check failed (${drift.length} error(s)) — fix routing before scoring. Nothing was replayed.`);
+    return 1;
+  }
+  ok("Registry check passed.");
+
   info(`Replaying ${tasks.length} golden task(s) headless (read-only, guard denies mutations)…\n`);
 
   const scores: TaskScore[] = [];

@@ -12,6 +12,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { getHarnessRepo, configDir } from "./paths.js";
 import { banner, c, info, warn } from "./ui.js";
+import { loadRegistry, type Tier } from "./registry.js";
 
 interface Run {
   ts?: number;
@@ -22,11 +23,25 @@ interface Run {
 interface SkillRow {
   skill: string;
   exists: boolean;
+  /** Declared model tier from definitions/registry.json, if the skill is registered. */
+  tier: Tier | null;
   runs_total: number;
   runs_window: number;
   failures: number;
   success_rate: number | null;
   last_seen_days_ago: number | null;
+}
+
+/**
+ * Runs grouped by the tier the registry says they should run at. This is the
+ * check on model allocation: if most invocations land on opus-tier skills, the
+ * allocation is aspirational rather than real, and the cheap tiers aren't earning
+ * their keep.
+ */
+function tierSpend(rows: SkillRow[]): Record<Tier | "unregistered", number> {
+  const out: Record<Tier | "unregistered", number> = { haiku: 0, sonnet: 0, opus: 0, unregistered: 0 };
+  for (const r of rows) out[r.tier ?? "unregistered"] += r.runs_total;
+  return out;
 }
 
 const runsPath = (): string => join(configDir(), "runs.jsonl");
@@ -38,7 +53,12 @@ function loadRuns(path: string): Run[] {
     const t = line.trim();
     if (!t) continue;
     try {
-      runs.push(JSON.parse(t) as Run);
+      const run = JSON.parse(t) as Run;
+      // log-skill-run.sh strips the plugin namespace, but only for runs logged
+      // after that fix. Normalize here too so historical `dev-ai-harness:foo`
+      // entries fold into `foo` instead of masquerading as a separate skill.
+      if (run.skill) run.skill = run.skill.replace(/^dev-ai-harness:/, "");
+      runs.push(run);
     } catch {
       // Tolerate a corrupt line rather than crash the report.
     }
@@ -93,7 +113,37 @@ export function metrics(rest: string[]): number {
 
   const seen = new Set(total.keys());
   const neverUsed = [...skills].filter((s) => !seen.has(s)).sort();
-  const orphanLogs = [...seen].filter((s) => !skills.has(s)).sort();
+
+  // A logged name that isn't a skill dir is not automatically drift. It may be a
+  // harness slash command or composite (both legitimately logged), or a global /
+  // marketplace skill from outside this repo. Only the remainder is real drift —
+  // a renamed or deleted harness skill still being invoked.
+  let known = new Set<string>();
+  try {
+    const reg = loadRegistry();
+    known = new Set([
+      ...reg.skills.map((s) => s.name),
+      ...reg.composites.map((k) => k.name),
+      ...reg.skills.flatMap((s) => s.entry.map((e) => e.replace(/^\//, ""))),
+      ...reg.composites.flatMap((k) => k.entry.map((e) => e.replace(/^\//, ""))),
+    ]);
+  } catch {
+    /* no registry; everything unknown falls to external */
+  }
+  const unmatched = [...seen].filter((s) => !skills.has(s)).sort();
+  const harnessComposites = unmatched.filter((s) => known.has(s));
+  // Namespaced (`plugin:skill`) or absent from the registry → owned elsewhere.
+  const external = unmatched.filter((s) => !known.has(s) && (s.includes(":") || !s.startsWith("harness-")));
+  const orphanLogs = unmatched.filter((s) => !known.has(s) && !external.includes(s));
+
+  // Declared tiers, so run counts can be reported against the allocation they were
+  // supposed to follow. A missing registry is non-fatal — tiers just read as null.
+  let tiers = new Map<string, Tier>();
+  try {
+    tiers = new Map(loadRegistry().skills.map((s) => [s.name, s.tier]));
+  } catch {
+    /* registry absent or unreadable; report without tiers */
+  }
 
   const perSkill: SkillRow[] = [...new Set([...skills, ...seen])].sort().map((name) => {
     const runsN = total.get(name) ?? 0;
@@ -102,6 +152,7 @@ export function metrics(rest: string[]): number {
     return {
       skill: name,
       exists: skills.has(name),
+      tier: tiers.get(name) ?? null,
       runs_total: runsN,
       runs_window: recent.get(name) ?? 0,
       failures: f,
@@ -126,7 +177,10 @@ export function metrics(rest: string[]): number {
           generated_at: Math.floor(now),
           window_days: windowDays,
           totals,
+          tier_spend: tierSpend(perSkill),
           never_used: neverUsed,
+          harness_composites: harnessComposites,
+          external_skills: external,
           orphan_logs: orphanLogs,
           per_skill: perSkill.map(({ runs_window, ...rest }) => ({ ...rest, [`runs_${windowDays}d`]: runs_window })),
         },
@@ -147,24 +201,47 @@ export function metrics(rest: string[]): number {
       `  ${c.dim(`runs (last ${windowDays}d)`)}     ${totals.runs_in_window}\n\n`,
   );
 
+  const spend = tierSpend(perSkill);
+  const spendTotal = Object.values(spend).reduce((a, b) => a + b, 0);
+  if (spendTotal) {
+    process.stdout.write(c.bold("Runs by declared tier\n"));
+    for (const t of ["haiku", "sonnet", "opus", "unregistered"] as const) {
+      if (!spend[t]) continue;
+      process.stdout.write(`  ${c.dim(t.padEnd(14))}${String(spend[t]).padStart(5)}  ${c.dim(pct(spend[t] / spendTotal))}\n`);
+    }
+    process.stdout.write("\n");
+  }
+
   const active = perSkill.filter((s) => s.runs_total).sort((a, b) => b.runs_total - a.runs_total);
   if (active.length) {
+    const NAME_W = 32;
+    const fit = (s: string) => (s.length > NAME_W - 1 ? s.slice(0, NAME_W - 2) + "…" : s).padEnd(NAME_W);
     process.stdout.write(
-      c.dim("skill".padEnd(26) + "runs".padStart(6) + `${windowDays}d`.padStart(6) + "ok".padStart(6) + "age(d)".padStart(9)) + "\n",
+      c.dim(
+        "skill".padEnd(NAME_W) + "tier".padEnd(8) + "runs".padStart(6) + `${windowDays}d`.padStart(6) + "ok".padStart(6) + "age(d)".padStart(9),
+      ) + "\n",
     );
     for (const s of active) {
       const ok = s.success_rate === null ? "" : pct(s.success_rate);
       const age = s.last_seen_days_ago === null ? "" : String(s.last_seen_days_ago);
       const okCol = s.failures > 0 ? c.yellow(ok.padStart(6)) : ok.padStart(6);
+      const tier = s.tier ? c.magenta(s.tier.padEnd(8)) : c.dim("—".padEnd(8));
       process.stdout.write(
-        s.skill.padEnd(26) + String(s.runs_total).padStart(6) + String(s.runs_window).padStart(6) + okCol + age.padStart(9) + "\n",
+        fit(s.skill) + tier + String(s.runs_total).padStart(6) + String(s.runs_window).padStart(6) + okCol + age.padStart(9) + "\n",
       );
     }
     process.stdout.write("\n");
   }
 
+  const unregistered = perSkill.filter((s) => s.exists && !s.tier).map((s) => s.skill);
+  if (unregistered.length) {
+    warn(`Not in the registry (no declared tier): ${unregistered.join(", ")}. Run \`harness registry check\`.`);
+  }
+
   if (neverUsed.length) info(`Never invoked (${neverUsed.length}): ${neverUsed.join(", ")}`);
-  if (orphanLogs.length) warn(`Orphan logs (skill gone from disk — rename/drift): ${orphanLogs.join(", ")}`);
+  if (harnessComposites.length) info(`Commands/composites (no skill dir by design): ${harnessComposites.join(", ")}`);
+  if (external.length) info(`External skills (outside this repo): ${external.join(", ")}`);
+  if (orphanLogs.length) warn(`Orphan logs — harness skill gone from disk (rename/drift): ${orphanLogs.join(", ")}`);
   if (!runs.length) {
     info("No runs logged yet. The PostToolUse hook logs skill invocations going forward.");
     info("Coverage climbs as you use the harness in Claude Code.");

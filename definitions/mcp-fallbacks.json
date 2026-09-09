@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "$comment": [
+    "Per-capability fallback chains. The `mcp__claude_ai_*` connectors are authenticated",
+    "INTERACTIVELY through claude.ai — they are frequently absent in headless and cron runs.",
+    "A skill that only knows the connector silently loses that capability there. Every skill",
+    "reading a remote system must walk its chain in order and, when it lands on `degrade`,",
+    "SAY SO in one line rather than producing a quietly thinner answer.",
+    "",
+    "This is why the 2-hourly harness-checkin cron must report degradation explicitly: an",
+    "autonomous digest that silently omits Calendar looks identical to a day with no meetings."
+  ],
+
+  "capabilities": {
+    "jira": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Atlassian__*Jira*" },
+      "fallback": {
+        "kind": "cli",
+        "probe": "acli --version",
+        "read": "acli jira workitem search --jql '<jql>' --json",
+        "note": "acli is the Atlassian CLI. Read-only subcommands only; writes stay gated."
+      },
+      "degrade": "Jira unavailable (no Atlassian connector, no acli) — skipping ticket scope."
+    },
+    "confluence": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Atlassian__*Confluence*" },
+      "fallback": { "kind": "none" },
+      "degrade": "Confluence unavailable — cannot ground against team docs or flag doc drift."
+    },
+    "github": {
+      "preferred": { "kind": "cli", "probe": "gh auth status", "read": "gh api / gh pr / gh search" },
+      "fallback": { "kind": "none" },
+      "note": "gh is the PREFERRED path, not the fallback — it works headless and is already authenticated.",
+      "degrade": "GitHub unavailable — run `gh auth login`."
+    },
+    "slack": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Slack__*" },
+      "fallback": { "kind": "none" },
+      "degrade": "Slack unavailable — support queue and channel scans skipped."
+    },
+    "calendar": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Google_Calendar__*" },
+      "fallback": { "kind": "user-supplied", "note": "Accept a pasted agenda: title, time, attendees." },
+      "degrade": "Calendar unavailable — no meeting ingest or prep this run."
+    },
+    "drive": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Google_Drive__*" },
+      "fallback": { "kind": "user-supplied", "note": "Accept a pasted doc link or the transcript text." },
+      "degrade": "Drive unavailable — Gemini transcripts cannot be fetched automatically."
+    },
+    "gmail": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Gmail__*" },
+      "fallback": { "kind": "none" },
+      "note": "Gated by the guard hook, so it is DENIED in autonomous runs by design. Never rely on it in cron.",
+      "degrade": "Gmail unavailable or gated — skipping the recap-email transcript source."
+    },
+    "sentry": {
+      "preferred": { "kind": "cli", "probe": "sentry auth status", "read": "sentry issue list --json" },
+      "fallback": { "kind": "mcp", "tools": "mcp__claude_ai_Sentry__*" },
+      "degrade": "Sentry not configured — add it with `/setup --field integrations`."
+    },
+    "datadog": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Datadog__*" },
+      "fallback": { "kind": "cli", "probe": "datadog-ci version", "note": "Read-only paths only." },
+      "degrade": "Datadog not configured — skipping monitor scan."
+    },
+    "amplitude": {
+      "preferred": { "kind": "mcp", "tools": "mcp__claude_ai_Amplitude__*" },
+      "fallback": { "kind": "none" },
+      "degrade": "Amplitude not configured — skipping product analytics."
+    },
+    "compass": {
+      "preferred": { "kind": "skill", "tools": "compass-analyst" },
+      "fallback": { "kind": "none" },
+      "degrade": "Compass alias not set — run `/setup --field team`."
+    }
+  },
+
+  "rules": [
+    "Probe before use. Never assume a connector is present because a skill lists it in allowed-tools.",
+    "Walk the chain in order; stop at the first that answers. Never retry a missing tool.",
+    "Landing on `degrade` is a REPORTABLE fact: emit its one-line message. Never omit silently.",
+    "In autonomous/cron runs, collect every degraded capability and list them once at the end of the digest, so a thin run is distinguishable from a quiet day.",
+    "Fallbacks are read-only. A write always goes through the gated path, whatever the transport."
+  ]
+}

@@ -40,8 +40,10 @@ today and what's coming — touching no remote state unless the user confirms.
 `profile.json` (missing → `/setup`, do what's possible). `$VAULT` from `config.json` →
 `vaultPath`, else `.scratch/checkins/`. `$NOW`/`$TODAY` from `date`.
 `definitions/urgency-matrix.json` for classification. Daily file format:
-**`daily-template.md`**. Prep scoring: **`prep-rubric.md`**. Mode: **interactive** (user ran
-`/checkin` — ask for their own items at the end) or **autonomous** (cron — never prompt).
+**`daily-template.md`**. Prep scoring: **`prep-rubric.md`**. Capability chains:
+`definitions/mcp-fallbacks.json` — probe before use; most connectors are session-only.
+Mode: **interactive** (user ran `/checkin` — ask for their own items at the end) or
+**autonomous** (cron — never prompt).
 
 ## Steps
 
@@ -65,6 +67,10 @@ today and what's coming — touching no remote state unless the user confirms.
 
 The top three action items and the count of the rest, any urgent prep, and the daily file
 path. Everything else lives in the file — don't restate it in chat.
+
+**Always close with any degraded capability**, using its `degrade` message from
+`mcp-fallbacks.json`. A cron run that lost Calendar looks identical to a day with no
+meetings unless you say so — never omit it silently.
 
 ## Gates
 
