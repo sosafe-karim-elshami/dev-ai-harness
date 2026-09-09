@@ -45,4 +45,11 @@ Set `discovery_provenance.<section>` to one of: `asked-user`, `github-api`, `con
 
 ## Output contract
 
-Write exactly one file: `~/.claude/sosafe-harness/profile.json`, conforming to `${CLAUDE_PLUGIN_ROOT}/definitions/profile.schema.json`. Nothing else is written; nothing remote is mutated.
+Four local writes, nothing remote:
+
+1. `~/.claude/sosafe-harness/profile.json` — conforming to `${CLAUDE_PLUGIN_ROOT}/definitions/profile.schema.json`. Identity, scope, and integrations only.
+2. `~/.claude/sosafe-harness/config.json` → `vaultPath`, after `scaffold-vault.sh` runs.
+3. `~/.claude/sosafe-harness/system.json` — via `harness graph build --system`. Derived ownership and dependencies; **not** part of the profile, because it's inferred rather than confirmed and is refreshed on every `harness sync`.
+4. The vault scaffold itself, under `vaultPath`.
+
+Nothing remote is mutated at any point.

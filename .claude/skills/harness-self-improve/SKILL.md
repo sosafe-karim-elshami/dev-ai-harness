@@ -1,78 +1,65 @@
 ---
 name: harness-self-improve
 description: >
-  Reflects on how the harness itself is performing and proposes concrete
-  improvements to skills, routing, and team knowledge — as drafts only. Trigger
-  on "self-improve", "how could the harness work better?", "reflect and improve",
-  "/self-improve", or when a scheduled self-improve digest runs. Strictly
-  read-only: it reviews recent activity (digests, sessions, memory, knowledge/)
-  and outputs a prioritized list of proposed edits. It never commits, pushes,
-  sends, or changes remote state; applying an accepted proposal makes local file
-  edits only.
+  Reflects on how the harness itself is performing and proposes concrete improvements to
+  skills, routing, and team knowledge — as drafts only. Trigger on "self-improve", "how
+  could the harness work better?", "reflect and improve", "/self-improve", or when a
+  scheduled self-improve digest runs. Strictly read-only: it reviews recent activity
+  (scorecards, runs, memory, knowledge/) and outputs a prioritized list of proposed edits.
+  It never commits, pushes, sends, or changes remote state; applying an accepted proposal
+  makes local file edits only.
+model: opus
+effort: high
 allowed-tools: >-
   Read
   Write
+  Edit
   Glob
   Grep
-  Bash(git status:*)
+  Bash(jq:*)
   Bash(git log:*)
   Bash(git diff:*)
-  Bash(date:*)
+  Bash(harness eval:*)
+  Bash(harness registry:*)
   Bash(harness metrics:*)
-  mcp__claude_ai_Atlassian__createConfluencePage
-effort: high
 ---
 
 # Harness Self-Improve
 
-A safe, draft-only reflection loop for the harness. Adapted from the
-self-improving-agent pattern (auto-memory curation) but scoped to *this* harness
-and gated by the guard hook. Read `~/.claude/sosafe-harness/profile.json` first.
+Red/green TDD over the harness itself. `definitions/eval/golden-tasks.jsonl` is the test
+suite; `harness eval` is the runner; `harness registry check` is the invariant gate.
 
-## The loop is red/green TDD over the harness itself
+## Inputs
 
-Each self-improve cycle is a test-driven development loop where golden tasks in
-`definitions/eval/golden-tasks.jsonl` are the test suite and `harness eval` is the
-test runner:
+Scorecards in `~/.claude/sosafe-harness/digests/eval-*.md`; `runs.jsonl` (via `harness
+metrics`); `~/.claude/sosafe-harness/memory/*.md`; `knowledge/` and
+`knowledge/anti-patterns/`; `definitions/registry.json`; `git log`/`git diff`.
 
-- **Red** — identify failing golden tasks in the latest scorecard. A proposal
-  without a failing task as its target has no verifiable impact.
-- **Green** — apply the minimal skill/routing change that makes those tasks pass.
-- **Never skip verifying red.** Before proposing a fix, confirm the task actually
-  fails in the current scorecard. A "fix" for a passing task wastes a cycle and
-  risks regression.
-- **Close the loop with a green run.** After applying, always re-run `harness eval`
-  and confirm the targeted tasks now pass. If they don't, the change was wrong —
-  record it in `knowledge/anti-patterns/` and try again.
-- **Adding new golden tasks follows the same discipline:** write the task, run
-  `harness eval` to confirm it fails (red), then make the implementation change
-  to pass it (green). A task you never saw fail is a test you can't trust.
+## Steps
 
-## What it does
+1. **Verify the last change landed.** Diff the newest scorecard against the previous one.
+   Improved → note the win. Flat or regressed → the change was noise or proxy-gaming:
+   recommend reverting and record it in `knowledge/anti-patterns/` so it isn't re-proposed.
+2. **Confirm red before proposing.** A proposal must name a golden task that *currently
+   fails*, or a `registry check` error. A "fix" for a passing task wastes the cycle and
+   risks regression — verify failure first, always.
+3. **Diagnose** by measured delta, not vibes: failing tasks first, then the lowest-scoring
+   dimension, then friction (stale triggers, tier/frontmatter drift, skills over the line
+   cap, `allowed-tools` that don't match actual use, missing knowledge entries).
+4. **Propose** a prioritized list. Each: the file, the exact edit or diff sketch, the failing
+   task it targets, the expected scorecard movement.
+5. **New golden tasks follow the same discipline** — write it, run `harness eval` to watch it
+   fail, then change the implementation to pass. A task you never saw fail can't be trusted.
 
-1. **Gather signal (read-only):**
-   - **The eval scorecard first.** Read the newest `eval-*.md` in `~/.claude/sosafe-harness/digests/` — this is the harness's honest signal (routing / read-only / citations / grounding), and it is what you optimize *against*. If none exists, say so and recommend the user run `harness eval` before you propose anything: without a verifier, self-improvement drifts into hacking a proxy you can't see (Weng's #1 bottleneck).
-   - **Observability metrics** — run `harness metrics --json` (or read it): skill coverage, per-skill usage, success rate, staleness, and **orphan logs** (a skill logged but gone from disk = drift). A never-invoked skill is undiscovered or dead; a low success rate is a concrete failing target; an orphan log is a rename that broke a reference.
-   - Recent run digests in the same folder — what runs produced, and any errors.
-   - Session activity via `harness sessions` context (frequency, resets).
-   - Injected memory in `~/.claude/sosafe-harness/memory/*.md`, and the negative-results store `knowledge/anti-patterns/` — never re-propose something recorded there as already tried and failed.
-   - The `knowledge/` folder and the `.claude/skills|commands` in the repo.
-   - `git log`/`git diff` for what changed recently (never write).
-2. **Verify the last change landed (diff scorecards):** compare the newest and previous `eval-*.md`. Did the last accepted proposal actually move the numbers?
-   - **Improved** → note the win.
-   - **Flat or regressed** → the change was reward-hacking or noise. Recommend reverting it and record it in `knowledge/anti-patterns/` so it isn't re-proposed.
-3. **Mine weaknesses (diagnose):** rank issues by **measured eval delta** — start with failing golden tasks, then the dimension with the lowest score. A proposal with no failing task as its target is lowest priority.
-4. **Propose (drafts):** output a prioritized list. For each: the file to touch, the exact edit or diff sketch, the failing task it targets, and the expected scorecard movement. Group by impact.
-5. **Self-document:** offer to distill durable lessons into a new/updated `knowledge/` entry — wins to `knowledge/`, losses to `knowledge/anti-patterns/`. Follow the respective README format.
+## Output
 
-## Applying proposals
+One line per proposal: `<file> — <edit> — targets <task-id> — expect <movement>`. Grouped by
+impact, highest first. Never re-propose anything recorded in `knowledge/anti-patterns/`.
 
-- Only when the user says "apply": make the **local file edits** described. Do **not** `git add`, `git commit`, `git push`, or open a PR — leave that to the human (the guard hook enforces this for outward actions).
-- **Always recommend `harness eval` after applying** — the green run closes the TDD loop. That scorecard becomes the input to the next self-improve pass.
-- Optionally publish a generated overview to a private Confluence space via `createConfluencePage` — **gated, off unless explicitly asked**.
+## Gates
 
-## Hard rules
-
-- Read-mostly. No sends, no transitions, no commits, no pushes.
-- In autonomous/scheduled runs (`HARNESS_AUTONOMOUS=1`) stay purely advisory: produce the proposal list for the digest and stop.
-- Ground every proposal in something you observed (cite the file/digest/log). Never invent.
+- **Draft-only.** Propose; apply only on an explicit "apply", and then local file edits only.
+- **Never** `git add`, `commit`, `push`, or open a PR — that's the human's call.
+- **Close the loop:** after applying, re-run `harness eval` and confirm the targeted tasks
+  now pass. If they don't, the change was wrong: record it in `anti-patterns/` and retry.
+- Publishing an overview to Confluence is off unless explicitly asked.

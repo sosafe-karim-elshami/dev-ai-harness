@@ -1,26 +1,48 @@
-Composite, **read-only** daily driver: project status + support scan + today's meetings, ordered for the user's role.
+---
+description: Role-ordered, read-only daily driver — project status, support queue, today's meetings, production health, merged into one triage list.
+---
+
+Composite **read-only** daily driver. Scatter the scans, gather one digest.
 
 ## Steps
 
-1. Read `~/.claude/sosafe-harness/profile.json` (missing → `/setup`). Get `person.role_class` and the matching `standup_order` from `${CLAUDE_PLUGIN_ROOT}/definitions/role-playbooks.json`.
-2. **Seed from the pending doc.** Check for `$VAULT/digests/<today>-pending.md`.
-   If it exists, read it and note any already-open action items, meeting prep
-   items, and docs-to-update that the overnight or earlier cron runs surfaced.
-   Show these as the starting point for today rather than re-deriving them.
-3. Run the sections in that order, gathering only (no mutations):
-   - **PM** — call the **`harness-pm`** skill (Skill tool) for the status summary + PR tracking (+ team metrics via `compass-analyst` for managers/staff). Skip the "apply fixes" step here.
-   - **Support** — call the **`harness-support-triage`** skill (Skill tool), step 1 only: surface the unanswered queue (no drafting unless asked).
-   - **Meetings** — call the **`harness-meetings`** skill (Skill tool) for today's calendar events (agenda highlights, not full notes).
-   - **Monitoring** — if `monitoring_scan` is in this role's `standup_order` and `profile.integrations` has any monitoring tool configured, call the **`harness-monitoring`** skill (Skill tool) for a short production-health read (firing alerts / spiking Sentry issues). Skip silently if nothing is configured.
-4. Produce one consolidated digest, role-ordered, with links. **Within each section, classify and order items by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`** (kind: actionable/to_review/knowledge; priority P1/P2/P3; flags leadership/external/overdue) and prefix each line with its priority + flag markers, so the digest reads as a triage list rather than a raw dump.
-5. **Save the digest** to the Obsidian vault so it's browsable and cross-linked: resolve `$VAULT` via `jq -r '.vaultPath' ~/.claude/sosafe-harness/config.json`, then write the digest to `$VAULT/digests/<YYYY-MM-DD>.md` with frontmatter (`type: digest`, `tags: [harness, standup]`, `updated: <date>`). Link out to relevant `[[meetings/...]]` and `[[memory/...]]` notes, and add a one-line `[[wikilink]]` under "## Recent" in `$VAULT/index.md`. If `vaultPath` is missing/empty, skip this step silently. Writing a local note is allowed — it changes no remote state.
-6. End with: "Want me to draft support replies, prep a specific meeting, or fix any Jira hygiene? I'll confirm before anything is sent."
+1. Read `~/.claude/sosafe-harness/profile.json` (missing → `/setup`). Take `person.role_class`
+   and its `standup_order` from `${CLAUDE_PLUGIN_ROOT}/definitions/role-playbooks.json`.
+2. **Seed from today's daily file.** Read `$VAULT/digests/<TODAY>.md` if it exists — the single
+   daily file that `/checkin` maintains. Carry its open action items, meeting prep, and
+   docs-to-update forward as today's starting point instead of re-deriving them.
+3. **Scatter — one message, all scans in parallel.** Spawn via the Task tool:
+   - `pm-scan` — Jira hygiene + PR sweep (JSON).
+   - `support-scan` — unanswered Slack/Jira queue (JSON). Surface only; no drafting.
+   - `prep-assess` — one per meeting on today's calendar (JSON). Agenda highlights, not notes.
+   - `harness-monitoring` — **only if** `monitoring_scan` is in this role's `standup_order`
+     **and** `profile.integrations` has a monitoring tool configured. Skip silently otherwise.
 
-Never send or change any **remote** state in `/standup` (Slack/Jira/email/git). It only reads, reports, and saves a local digest note.
+   Don't call `harness-pm` or `harness-support-triage` here — they'd re-do the scan in the main
+   context. The subagents are the scan; this command is the merge.
+4. **Gather.** Classify every item with `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`
+   (kind, priority, flags), then order by it — leadership/overdue first, then P1 → P2 → P3, then
+   due date. Prefix each line with its priority and flag markers. Section order follows
+   `standup_order`; omit any empty section.
+5. **Save** to `$VAULT/digests/<YYYY-MM-DD>.md` — merge into the existing daily file, never
+   replace it: preserve completed `[x]` items, de-duplicate, bump `last_updated`. Format per
+   `.claude/skills/harness-checkin/daily-template.md`. Add a `[[wikilink]]` under "## Recent" in
+   `$VAULT/index.md`. `vaultPath` unset → skip silently.
+6. Close with one line: "Want support replies drafted, a meeting prepped, or Jira hygiene
+   fixed? I'll confirm before anything is sent."
+
+## Output
+
+Per `${CLAUDE_PLUGIN_ROOT}/definitions/output-contract.md`: the top item per section, one line
+each with its link, then the digest path. The full digest lives in the file — don't reprint it.
+
+## Safety
+
+Never changes remote state — no Slack, Jira, email, or git. Reads, reports, and saves one local
+digest note.
 
 ## Optional: run on a schedule
 
-To get this each weekday morning as a digest, set up a scheduled run (off by default):
-- Use Claude Code scheduling (`CronCreate` / `ScheduleWakeup`) to invoke `/standup` on a cron (e.g. `0 9 * * 1-5`).
-- The scheduled run stays read-only and only produces the digest (and optionally staged drafts). It must never auto-send — the guard hook still applies.
-- Document the user's chosen schedule in their notes; keep secrets out of the cron command.
+Off by default. `CronCreate` / `ScheduleWakeup` to invoke `/standup` on a weekday cron (e.g.
+`0 9 * * 1-5`). Scheduled runs stay read-only and produce the digest plus staged drafts only —
+never auto-send; the guard hook still applies. Keep secrets out of the cron command.

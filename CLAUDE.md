@@ -6,70 +6,84 @@ This file is loaded into every session in this repo. It is the routing brain.
 
 ## First thing every session
 
-1. Check for the profile at `~/.claude/sosafe-harness/profile.json`.
-   - **Missing or `schema_version` ≠ 1** → tell the user to run `/setup` (or invoke the `harness-onboarding` skill) before doing role-aware work. Generic asks (e.g. "summarize this PR") still work without it.
-   - **Present** → read it. It defines the user (`person.role_class`), their `team`, `repos`, `jira.project_keys`, and `slack` channels. **Never hardcode any of this — always read it from the profile.**
-2. Let `person.role_class` (`ic` | `manager` | `staff`) shape ordering and emphasis, per `definitions/role-playbooks.json`.
+1. **Read `definitions/output-contract.md`.** It binds every reply. Verbosity is a bug.
+2. Check `~/.claude/sosafe-harness/profile.json`. Missing or `schema_version` ≠ 1 → tell the user to run `/setup`; generic asks still work. Present → read it: it defines `person.role_class`, `team`, `repos`, `jira.project_keys`, `slack`. **Never hardcode any of this.**
+3. Read `~/.claude/sosafe-harness/system.json` for what the user actually maintains — ownership, dependencies, service boundaries, derived from GitHub and Compass rather than self-reported. Stale or missing → `harness graph build --system`.
+4. Let `person.role_class` (`ic` | `manager` | `staff`) shape ordering, per `definitions/role-playbooks.json`.
 
 ## Routing
 
-**How to route:** when the table says "route to X", call X via the **Skill tool** (or the slash command). Never execute X's steps inline. The Skill tool invocation IS the routing — direct tool calls bypass it.
+**How to route:** call the target via the **Skill tool** (or its slash command). Never execute its steps inline — the Skill tool invocation *is* the routing. Depth for every entry below (reads, writes, gates, subagents) is in `definitions/registry.json`; read it when you need more than the destination.
 
-| User intent | Route to |
-|---|---|
-| "set me up", first run, refresh my context | `/setup` → `harness-onboarding` |
-| "clone my repos", "pull the projects I maintain" | `harness-workspace` |
-| "what should I look at today?", daily driver | `/standup` |
-| Jira hygiene, sprint/status, PR tracking, "how's the team doing?" | `harness-pm` (delegates metrics to `compass-analyst`) |
-| unanswered support, "anyone need a reply?" | `/triage` → `harness-support-triage` |
-| production health, "any errors?", "what's alerting?", Sentry/Datadog/Amplitude | `/monitoring` → `harness-monitoring` |
-| prep/run a meeting, agenda, action items | `/meeting` → `harness-meetings` |
-| transcribed/finished meeting, "ingest my Gemini notes", follow up on a meeting | `/meeting` (follow-up mode) → `harness-meetings` |
-| "show my dashboard", dev status at a glance | `harness dashboard` (CLI) → composes `harness-pm` + `harness-support-triage` + `harness-meetings` |
-| groom/refine the backlog, "get my tickets ready", sprint prep, "is this ticket ready?", split a too-big ticket | `/groom` → `harness-groom` (reuses `harness-pm` hygiene + `sosafe-ticket-loop` quality/estimate/decompose + `sosafe-planning`) |
-| "self-improve", reflect and propose harness improvements | `/self-improve` → `harness-self-improve` |
-| end-of-day wrap-up, "what happened today", "prepare for tomorrow", "collect my action items", "align my docs", 2-hour autonomous check-in | `/checkin` → `harness-checkin` |
-| career growth, visibility gap, IDP check, "how do I level up?", "what should I present?", "turn work into a talk/slides", "slide deck", 1:1 with growth/salary focus, knowledge sharing prep | `harness-growth` |
-| capture/find a note, "add this to my notes", "what did I write about X" | `/notes` (global) → the Obsidian vault |
-| create a PR / branch | reuse `sosafe-pr-workflow` (don't reimplement) |
-| break work into Jira tickets | reuse `sosafe-planning` |
-| security / architecture review | reuse `sosafe-security` / `sosafe-architecture` |
-| "implement this ticket", "build this task", "code LTC-XXXX", autonomous code → PR | reuse `sosafe-ai-harness-task-to-pr` → `/sosafe-ai-harness-task-to-pr:implement-task <key or description>` (DX harness plugin; runs developer → reviewer → tester pipeline, only opens PR after checks pass) |
-| "generate a CLAUDE.md", "set up AI context for this repo" | reuse `sosafe-ai-harness-claude-md` → `/sosafe-ai-harness-claude-md:generate-claude-md` (DX harness plugin; introspects repo and writes a grounded CLAUDE.md — run this first in any new repo) |
+<!-- BEGIN GENERATED ROUTING (harness registry sync) -->
+
+<!-- Generated from definitions/registry.json. Do not hand-edit: `harness registry sync` overwrites it. -->
+
+| Intent | Route to | Tier |
+|---|---|---|
+| set me up, onboard me, refresh my profile, first run | `/setup` → `harness-onboarding` | sonnet |
+| clone my repos, pull the projects I maintain, set up my workspace, update my repos | `harness-workspace` | haiku |
+| how's the sprint, team status, Jira hygiene, what PRs need review | `harness-pm` | sonnet |
+| any support waiting, unanswered questions, triage support, anyone need a reply | `/triage` → `harness-support-triage` | opus |
+| any errors, how's production, what's alerting, Sentry issues | `/monitoring` → `harness-monitoring` | sonnet |
+| prep my next meeting, what's my 2pm about, agenda for standup, take notes | `/meeting` → `harness-meetings` | sonnet |
+| wrap up today, what happened today, prepare for tomorrow, collect my action items | `/checkin` → `harness-checkin` | sonnet |
+| groom my backlog, get my tickets ready, refine the backlog, sprint prep | `/groom` → `harness-groom` | opus |
+| review this, review my changes, review this PR, is this ready to merge | `/review` → `harness-review` | opus |
+| how's my career going, 1:1 growth prep, what should I present, visibility gap | `/growth` → `harness-growth` | opus |
+| self-improve, how could the harness work better, reflect and improve | `/self-improve` → `harness-self-improve` | opus |
+| which skill handles, what harness command does, is there a skill for | `harness-find-skill` | haiku |
+| add analytics to a module, instrument module events, analytics hook, analytics ticket | `sosafe-elearning-analytics` | sonnet |
+| Role-ordered daily driver. Scatter the scans, gather into one digest. | `/standup` (scatter/gather) | sonnet |
+| CLI dev status at a glance; caches a structured snapshot for --cached re-render. | `harness dashboard` (scatter/gather) | sonnet |
+
+**Reuse, never rebuild** — route by intent:
+
+- metrics → `compass-analyst (sosafe-engineering-metrics)`
+- pull-requests → `sosafe-pr-workflow`
+- ticket-creation → `sosafe-planning`
+- ticket-quality-size-split → `sosafe-ticket-loop`
+- security-review → `sosafe-security`
+- architecture-review → `sosafe-architecture`
+- autonomous-code-to-pr → `sosafe-ai-harness-task-to-pr:implement-task`
+- repo-claude-md → `sosafe-ai-harness-claude-md:generate-claude-md`
+- notes-capture → `/notes (global, Obsidian vault)`
+
+**Never routable** (internal sub-agents of `sosafe-ai-harness-task-to-pr`): `harness-developer`, `harness-reviewer`, `harness-tester`.
+
+<!-- END GENERATED ROUTING -->
 
 ## Principles (non-negotiable)
 
 - **Read-mostly by default.** Every workflow reads, summarizes, and drafts. It does not change remote state on its own.
-- **Confirm before any outward/destructive action.** Posting to Slack, transitioning/creating/commenting on Jira, editing Confluence, sending email, `git push`, `gh pr create|merge`. Batch them and ask **once**, naming every target. A `PreToolUse` hook (`.claude/hooks/confirm-outward-actions.sh`) enforces this independently of prose — if you ever find it bypassed, stop and surface it.
-- **Reuse the marketplace, don't rebuild it.** Metrics → `compass-analyst`. PRs (human-in-the-loop) → `sosafe-pr-workflow`. Ticket creation → `sosafe-planning`. Reviews → `sosafe-security`/`sosafe-architecture`. Autonomous code → PR pipeline → `sosafe-ai-harness-task-to-pr`. Repo CLAUDE.md generation → `sosafe-ai-harness-claude-md`.
-- **Ground every answer.** Cite sources — code in `workspace/`, `knowledge/` entries, Confluence pages, Jira keys, Slack permalinks. Never invent.
-- **Verify before you recall.** Memory and `knowledge/` reflect what was true when written. Before recommending a file, flag, or command that a memory/knowledge entry names, confirm it still exists (Grep/Read); if it's gone, say so and surface it for cleanup (`harness memory audit`) rather than repeating stale guidance. Check `knowledge/anti-patterns/` before answering — a match there is a known dead end.
-- **The profile is per-user and private** (`~/.claude/sosafe-harness/`). The `knowledge/` folder is shared team memory and is committed. Don't put one where the other belongs.
-- **`harness-*` naming disambiguation:** `harness-developer`, `harness-reviewer`, and `harness-tester` are **internal sub-agents** spawned by `sosafe-ai-harness-task-to-pr:implement-task`. They are NOT harness skills and are NOT routable directly — never invoke them by name. All user-facing code-generation entry points go through `implement-task`.
+- **Confirm before any outward/destructive action.** Slack posts, Jira transitions/creates/comments, Confluence edits, email, `git push`, `gh pr create|merge`. Batch them and ask **once**, naming every target. `.claude/hooks/confirm-outward-actions.sh` enforces this independently of prose — if you find it bypassed, stop and surface it.
+- **Reuse the marketplace, don't rebuild it.** See the reuse map above.
+- **Ground every answer.** Cite `path:line`, Jira keys, PR numbers, permalinks. Never invent.
+- **Verify before you recall.** Memory and `knowledge/` reflect what was true when written. Confirm a file/flag/command still exists before recommending it; if it's gone, surface it for cleanup (`harness memory audit`). Check `knowledge/anti-patterns/` first — a match there is a known dead end.
+- **Spend the right model.** Every skill declares a tier in the registry: haiku for mechanical work, sonnet for scan-and-summarize, opus for judgment. Fan work out to subagents at the declared tier rather than doing it inline at the session tier.
+- **Private vs shared.** The profile and vault are per-user (`~/.claude/sosafe-harness/`). `knowledge/` is committed team memory. Don't put one where the other belongs.
 
 ## H2 2026 company strategy context
 
-The full strategy lives in `knowledge/h2-2026-strategy.md` (source: Engineering Confluence). Ground any question about priorities, pillar alignment, or team direction against it. Key points that shape how the harness operates:
+Full text in `knowledge/h2-2026-strategy.md` (source: Engineering Confluence). Ground any question about priorities or team direction against it.
 
-- **Pillar 3 (AI Engineering Platform):** This harness IS the shared agent direction baseline Engineering is rolling out. Every actively agentic repo should run on it. The AI Guild is the cross-team alignment forum — treat it as a standing routing destination when questions cross team boundaries.
-- **Pillar 1 (Resilient Operations):** Monitoring scans should surface Compass hygiene (ownership, security score) and CD adoption alongside Sentry — these are H2 OKR inputs, not optional hygiene.
-- **Pillar 4 (Monolith decoupling):** E-Learning is at 84%/24% (code/data) against a target of full contract-boundary isolation. Work on `fe-mf-course-engine`, `be-app-elearning`, or any shared-table path is in-scope for this pillar.
-- **What's NOT on the agenda:** multi-cloud, multi-region, major refactoring inside monoliths, a standalone AI pillar. Don't suggest these as options.
+- **Pillar 3 (AI Engineering Platform):** this harness IS the shared agent baseline Engineering is rolling out. The AI Guild is the cross-team alignment forum.
+- **Pillar 1 (Resilient Operations):** monitoring scans surface Compass hygiene (ownership, security score) and CD adoption alongside Sentry — H2 OKR inputs, not optional.
+- **Pillar 4 (Monolith decoupling):** E-Learning is at 84%/24% (code/data) against full contract-boundary isolation. Work on `fe-mf-course-engine`, `be-app-elearning`, or any shared-table path is in scope.
+- **Not on the agenda:** multi-cloud, multi-region, major refactoring inside monoliths, a standalone AI pillar. Don't offer these.
 
 ## Layout
 
-- `definitions/` — `profile.schema.json` (validate the profile), `role-playbooks.json` (role emphasis), `discovery-queries.json` (read-only query templates), `eval/golden-tasks.jsonl` (the recorded asks `harness eval` replays to score the harness).
-- `knowledge/` — committed, shareable team memory. Workflows check it first; `harness-support-triage` grows it. `knowledge/anti-patterns/` is the negative-results store — recorded wrong answers and dead ends, checked before answering.
-- `workspace/` — gitignored; the repos the user maintains, cloned by `harness-workspace`.
-- `.claude/skills|commands|hooks` — the harness itself. Two hooks: `confirm-outward-actions.sh` (PreToolUse guard) and `log-skill-run.sh` (PostToolUse observability — logs each skill run to the private `runs.jsonl`, read by `harness metrics`).
+- `definitions/` — `registry.json` (routing + tiers, single source of truth), `output-contract.md` (reply rules), `profile.schema.json`, `role-playbooks.json`, `discovery-queries.json`, `urgency-matrix.json`, `mcp-fallbacks.json`, `eval/golden-tasks.jsonl`.
+- `knowledge/` — committed team memory; `knowledge/anti-patterns/` is the negative-results store, checked before answering.
+- `workspace/` — gitignored clones of the repos the user maintains (`harness-workspace`).
+- `.claude/skills|commands|hooks` — the harness itself. Hooks: `confirm-outward-actions.sh` (PreToolUse guard) and `log-skill-run.sh` (PostToolUse observability → `runs.jsonl`, read by `harness metrics`).
+- `cli/` — the `harness` CLI. `harness registry check` gates routing drift and is part of `harness eval`.
 
 ## Knowledge vault (Obsidian)
 
-Each dev has a **personal, cross-session knowledge base** as an Obsidian vault; the **setup is shared** and the **content is private**. The vault path is per-dev, recorded in `~/.claude/sosafe-harness/config.json` → `vaultPath` (never hardcode it — always resolve it). It holds `memory/`, `meetings/`, `digests/`, `monitoring/`, and `knowledge/`, all plain Markdown with `[[wikilinks]]` and `type:` frontmatter.
+Each dev has a personal cross-session vault; **setup is shared, content is private**. The path is per-dev in `~/.claude/sosafe-harness/config.json` → `vaultPath` — always resolve it, never hardcode. It holds `memory/`, `meetings/`, `digests/`, `monitoring/`, `growth/`, `knowledge/` as plain Markdown with `[[wikilinks]]` and `type:` frontmatter.
 
-- **Shared (committed here):** `definitions/vault-templates/` (scaffold source), `.claude/skills/harness-onboarding/scaffold-vault.sh`, the `.claude/commands/notes.md` command, and the skill wiring. `/setup` step 4 scaffolds each dev's vault from the templates and records their `vaultPath`.
-- **Private (never committed):** the dev's vault folder and its notes.
-- The global **`/notes`** command captures/searches the vault from **any** session or repo — resolve `vaultPath` first, never write outside it; if unset, tell the user to run `/setup`.
-- `harness-meetings` writes agendas/notes to `$VAULT/meetings/`; `/standup` saves digests to `$VAULT/digests/`; `harness-monitoring` saves snapshots to `$VAULT/monitoring/`. All fall back gracefully if the vault path is unset.
-- Writing a note is local and safe; outward actions still go through the guard hook.
-
+- Shared and committed here: `definitions/vault-templates/`, `.claude/skills/harness-onboarding/scaffold-vault.sh`, `.claude/commands/notes.md`. `/setup` step 4 scaffolds the vault and records `vaultPath`.
+- The global **`/notes`** command captures and searches the vault from any session or repo. Never write outside `vaultPath`; if unset, tell the user to run `/setup`.
+- Vault writes are local and safe. Outward actions still go through the guard hook.

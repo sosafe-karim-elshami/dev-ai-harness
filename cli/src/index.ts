@@ -34,6 +34,7 @@ import { startMcp } from "./mcp.js";
 import { dashboard } from "./dashboard.js";
 import { selfImprove } from "./self-improve.js";
 import { evaluate } from "./eval.js";
+import { registry } from "./registry.js";
 import { metrics } from "./observability.js";
 import { graphPath } from "./paths.js";
 
@@ -78,6 +79,8 @@ async function main(argv: string[]): Promise<number> {
       return selfImprove(rest);
     case "eval":
       return evaluate(rest);
+    case "registry":
+      return registry(rest);
     case "metrics":
       return metrics(rest);
     case "mcp":
@@ -340,6 +343,7 @@ function usage(): number {
       `  harness dashboard [--cached]    ${c.dim("role-ordered dev dashboard; --cached re-renders last snapshot fast")}\n` +
       `  harness self-improve [--digest] ${c.dim("read-only reflection: propose harness improvements")}\n` +
       `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
+      `  harness registry check|sync|show ${c.dim("routing single source of truth: drift check, regen CLAUDE.md, tiers")}\n` +
       `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +
       `  harness sessions                ${c.dim("list saved contexts + session ids")}\n` +
       `  harness reset <context>         ${c.dim("forget a context's session")}\n` +

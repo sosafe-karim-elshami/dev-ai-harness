@@ -1,45 +1,52 @@
 ---
 name: harness-find-skill
-description: Given a task or intent, finds the most relevant locally INSTALLED skill(s) — spanning harness, SoSafe marketplace, and global skills. Use when asking "which installed skill handles X?" or "what harness command does X?". Distinct from find-skills (which discovers skills to install from the ecosystem).
+description: >
+  Given a task or intent, finds the most relevant locally INSTALLED skill(s) — spanning
+  harness, SoSafe marketplace, and global skills. Use when asking "which installed skill
+  handles X?", "what harness command does X?", or "is there a skill for X?". Distinct from
+  find-skills, which discovers skills to install from the ecosystem.
+model: haiku
+effort: low
+allowed-tools: Read, Grep, Glob, Bash(find:*), Bash(ls:*), Bash(jq:*)
 ---
 
 # Harness Find Skill
 
-Search all locally installed skills and return the best match(es) for the described task.
+Answer "which skill handles this?" from the registry first — it's an index built for
+exactly this question. Only scan the filesystem when the registry has no match.
+
+## Inputs
+
+- `${CLAUDE_PLUGIN_ROOT}/definitions/registry.json` — every harness skill and composite,
+  with triggers, tier, and purpose. Also `reuse` (marketplace capabilities by intent) and
+  `not_routable` (names that must never be suggested).
 
 ## Steps
 
-1. **Discover all installed SKILL.md files** by running:
+1. Match the task against `registry.json` → `skills[].triggers`, `skills[].purpose`,
+   `composites[]`, and `reuse`. Almost every ask resolves here.
+2. Registry hit → return it. Done. Do not scan the filesystem to "confirm".
+3. No hit → the ask is outside the harness. Scan installed skills for a match:
    ```bash
-   find \
-     "$HOME/.claude/plugins/cache/sosafe-harness" \
-     "$HOME/.claude/plugins/cache/sosafe-claude-market" \
-     "$HOME/.claude/skills" \
-     -name "SKILL.md" 2>/dev/null | sort
+   find "$HOME/.claude/plugins/cache" "$HOME/.claude/skills" -name SKILL.md 2>/dev/null
    ```
-   For versioned sosafe plugins (multiple SHA dirs), only read the most recently modified dir per plugin:
-   ```bash
-   ls -dt "$HOME/.claude/plugins/cache/sosafe-claude-market/<plugin>"/*/ | head -1
-   ```
+   Read only the frontmatter `name` + `description` of candidates whose path or filename
+   already looks relevant. For a plugin with several versioned SHA dirs, take the newest:
+   `ls -dt "$HOME/.claude/plugins/cache/<market>/<plugin>"/*/ | head -1`.
+4. Still nothing → say so in one line and offer `/find-skills` (ecosystem discovery).
 
-2. **For each SKILL.md**, extract:
-   - `name` and `description` from frontmatter
-   - First 30 lines of body (trigger phrases, when-to-use, what it covers)
+## Output
 
-3. **Rank against the user's task** — match on keywords, intent, domain, and explicit trigger phrases in the skill body.
+One to three matches, one line each — no headers, no ranking table:
 
-4. **Return the top 1–3 matches** in this format:
-   ```
-   /<skill-name>  — <one-sentence description>
-   Why: <what specifically matched the request>
-   ```
-   If a match is from a plugin namespace, show the full invocation: `dev-ai-harness:harness-pm` or `sosafe-pr-workflow:sosafe-exp-squad-pr`.
+```
+<invocation> — <what it does>   (why: <what matched>)
+```
 
-5. If nothing matches, say so and offer to help directly or suggest `/find-skills` (the external skills marketplace search).
+Use the full namespaced invocation where one applies: `dev-ai-harness:harness-pm`,
+`sosafe-pr-workflow:sosafe-exp-squad-pr`.
 
-## Matching guidance
+## Gates
 
-- Harness-workflow tasks (standup, meeting, sprint, monitoring, check-in, career growth) → prefer `dev-ai-harness:harness-*`
-- SoSafe engineering tasks (PRs, Jira planning, security review, architecture, unit tests) → prefer `sosafe-*` marketplace skills
-- Ambiguous asks → show one from each relevant category and let the user pick
-- Never guess or fabricate a skill name — only return skills whose SKILL.md you actually read
+Read-only. Never return a skill whose entry you didn't actually read, and never suggest a
+`registry.not_routable` name.
