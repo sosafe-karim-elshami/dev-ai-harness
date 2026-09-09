@@ -221,6 +221,56 @@ export function checkRegistry(harnessRepo = getHarnessRepo()): Finding[] {
     }
   }
 
+  // Declared subagents must exist on disk with a matching `name:`, and their model
+  // must match the tier the registry allocated them. A skill that spawns a
+  // non-existent agent fails at runtime, in the middle of a user's workflow.
+  const agentDir = join(harnessRepo, ".claude", "agents");
+  const onDiskAgents = new Map<string, { model?: string }>();
+  if (existsSync(agentDir)) {
+    for (const f of readdirSync(agentDir).filter((f) => f.endsWith(".md"))) {
+      const text = readFileSync(join(agentDir, f), "utf8");
+      const end = text.indexOf("\n---", 3);
+      const fm = end === -1 ? text : text.slice(0, end);
+      const name = /^name:\s*(\S+)/m.exec(fm)?.[1];
+      if (name) onDiskAgents.set(name, { model: /^model:\s*(\S+)/m.exec(fm)?.[1] });
+    }
+  }
+  const declaredAgents = new Set<string>();
+  for (const s of reg.skills) {
+    for (const sub of s.subagents ?? []) {
+      declaredAgents.add(sub.name);
+      const agent = onDiskAgents.get(sub.name);
+      if (!agent) {
+        findings.push({ level: "error", msg: `${s.name}: declares subagent \`${sub.name}\`, missing from .claude/agents/` });
+      } else if (agent.model && !agent.model.includes(sub.tier)) {
+        findings.push({
+          level: "error",
+          msg: `agent ${sub.name}: model \`${agent.model}\` contradicts registry tier \`${sub.tier}\` (declared by ${s.name})`,
+        });
+      }
+    }
+  }
+  for (const name of onDiskAgents.keys()) {
+    if (!declaredAgents.has(name)) {
+      findings.push({ level: "warn", msg: `agent ${name} exists on disk but no skill declares it` });
+    }
+  }
+
+  // A composite's scatter list is what /standup and the dashboard actually execute,
+  // so every entry must resolve to an agent on disk or a registered skill. Entries
+  // may name a skill mode as `skill:mode` — only the skill part is resolvable here.
+  for (const k of reg.composites) {
+    for (const target of k.scatter) {
+      const base = target.split(":")[0];
+      if (!onDiskAgents.has(base) && !declared.has(base)) {
+        findings.push({
+          level: "error",
+          msg: `composite ${k.name}: scatter target \`${target}\` is neither an agent nor a registered skill`,
+        });
+      }
+    }
+  }
+
   // Every slash command should map to a skill entry or a composite.
   const cmdDir = join(harnessRepo, ".claude", "commands");
   const entries = new Set<string>();

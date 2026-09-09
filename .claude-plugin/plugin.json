@@ -6,8 +6,9 @@
   "author": { "name": "SoSafe Platform Engineering" },
   "repository": "https://github.com/sosafe-platform-engineering/dev-ai-harness",
   "license": "MIT",
-  "keywords": ["harness", "standup", "jira", "pm", "support-triage", "meetings", "monitoring"],
+  "keywords": ["harness", "standup", "jira", "pm", "support-triage", "meetings", "monitoring", "review"],
   "skills": "./.claude/skills/",
   "commands": ["./.claude/commands/"],
+  "agents": "./.claude/agents/",
   "hooks": "./.claude/hooks/hooks.json"
 }
