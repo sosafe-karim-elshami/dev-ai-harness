@@ -75,7 +75,7 @@ async function main(argv: string[]): Promise<number> {
     case "sync":
       return sync();
     case "install-cron":
-      return installCron(rest.includes("--apply"));
+      return installCron(rest.includes("--apply"), rest.includes("--headless-only"));
     case "graph":
       return cmdGraph(rest);
     case "dashboard":
@@ -364,7 +364,7 @@ function usage(): number {
       `  harness memory [show|add|edit]  ${c.dim("view/append durable memory")}\n` +
       `  harness memory audit [--deep]   ${c.dim("flag stale / duplicate / contradictory memory (read-only)")}\n` +
       `  harness sync                    ${c.dim("git pull harness + refresh marketplaces")}\n` +
-      `  harness install-cron [--apply]  ${c.dim("schedule weekday digest runs")}\n` +
+      `  harness install-cron [--apply] [--headless-only]  ${c.dim("schedule runs; --headless-only skips connector-dependent jobs")}\n` +
       `  harness graph build [--infer]   ${c.dim("build the context graph (+ inferred links)")}\n` +
       `  harness graph build --system    ${c.dim("derive ownership + deps from GitHub → system.json")}\n` +
       `  harness graph query|neighbors|path|explain   ${c.dim("query the context graph")}\n` +

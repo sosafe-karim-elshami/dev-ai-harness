@@ -100,27 +100,72 @@ function plan(root: string, pol: Retention, todayIso: string, overrideDays?: num
   return { moves, skipped };
 }
 
+const LINK = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
+
 /**
- * Drop archived notes' links from index.md. The vault's convention is that the
- * index lists what's live — previous manual archiving removed these lines rather
- * than re-pointing them. Returns the number of lines removed.
+ * Remove archived notes' links from index.md. The vault's convention is that the
+ * index lists what's live — previous manual archiving deleted these entries rather
+ * than re-pointing them.
+ *
+ * This works per LINK, not per line. Index lines are sometimes compound
+ * (`- [[digests/2026-08-13|Aug 13]] · [[digests/2026-08-12|Aug 12]]`), so dropping
+ * the whole line would take a live link with it, while keeping the whole line
+ * would leave a link pointing at a moved file. Strip just the archived links; drop
+ * the line only once nothing linkable is left on it.
  */
-function pruneIndex(root: string, moves: Move[], apply: boolean): number {
+function pruneIndex(root: string, apply: boolean): { links: number; lines: number } {
   const indexPath = join(root, "index.md");
-  if (!existsSync(indexPath)) return 0;
+  if (!existsSync(indexPath)) return { links: 0, lines: 0 };
 
-  const archived = new Set(moves.map((m) => `${m.folder}/${m.file.replace(/\.md$/, "")}`));
-  const lines = readFileSync(indexPath, "utf8").split("\n");
-  const kept = lines.filter((line) => {
-    const links = [...line.matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)].map((x) => x[1]);
-    // Only drop a line whose links are ALL archived — never strip a paragraph that
-    // still references something live.
-    return !(links.length && links.every((l) => archived.has(l)));
-  });
+  // Archived-ness is determined from DISK, not from this run's move list: the live
+  // file is gone and an archive/ copy exists. That makes the reconcile idempotent
+  // and self-healing — it repairs links left dangling by an earlier run or by a
+  // manual move, not just the files this invocation touched.
+  const isArchived = (target: string): boolean => {
+    const slash = target.lastIndexOf("/");
+    if (slash === -1) return false;
+    const folder = target.slice(0, slash);
+    const name = target.slice(slash + 1);
+    if (folder.endsWith("/archive") || folder === "archive") return false;
+    return !existsSync(join(root, folder, `${name}.md`)) && existsSync(join(root, folder, "archive", `${name}.md`));
+  };
+  const archived = { has: isArchived };
 
-  const removed = lines.length - kept.length;
-  if (removed && apply) writeFileSync(indexPath, kept.join("\n"), "utf8");
-  return removed;
+  const src = readFileSync(indexPath, "utf8").split("\n");
+  const out: string[] = [];
+  let links = 0;
+  let dropped = 0;
+
+  for (const line of src) {
+    const present = [...line.matchAll(LINK)].map((x) => x[1]);
+    const hits = present.filter((l) => archived.has(l));
+    if (!hits.length) {
+      out.push(line);
+      continue;
+    }
+    links += hits.length;
+
+    if (hits.length === present.length) {
+      // Nothing live on this line — drop it, matching the existing convention.
+      dropped++;
+      continue;
+    }
+
+    // Compound line: excise only the archived links, then tidy the separators they
+    // leave behind (` · `, a trailing bullet, a dangling em-dash).
+    let next = line.replace(LINK, (whole, target: string) => (archived.has(target) ? "" : whole));
+    next = next
+      .replace(/\s*·\s*·\s*/g, " · ")
+      .replace(/(^|\s)·\s*/g, "$1")
+      .replace(/\s*·\s*$/g, "")
+      .replace(/^(\s*[-*]\s*)[—–-]\s*/, "$1")
+      .replace(/\s*[—–]\s*$/, "")
+      .replace(/[ \t]+$/, "");
+    out.push(next);
+  }
+
+  if ((links || dropped) && apply) writeFileSync(indexPath, out.join("\n"), "utf8");
+  return { links, lines: dropped };
 }
 
 /** Generate `<folder>/archive/index.md` so archived notes stay reachable. */
@@ -183,6 +228,14 @@ export function archive(argv: string[]): number {
   banner();
   if (!moves.length) {
     ok(`Nothing to archive — no dated note is older than the cutoff.`);
+    // Still reconcile: a link can dangle from an earlier run or a manual move, and
+    // the whole point of a disk-driven reconcile is that it doesn't need this run
+    // to have moved anything.
+    const pruned = pol.index.prune_links ? pruneIndex(vault, apply) : { links: 0, lines: 0 };
+    if (pruned.links) {
+      if (apply) ok(`Reconciled index.md: pruned ${pruned.links} dangling link(s), removed ${pruned.lines} line(s).`);
+      else info(`index.md has ${pruned.links} link(s) pointing at already-archived notes. Re-run with --apply to prune.`);
+    }
     if (skipped.length) info(`${skipped.length} exempt (undated or pinned).`);
     return 0;
   }
@@ -208,16 +261,19 @@ export function archive(argv: string[]): number {
         warn(`could not move ${m.folder}/${m.file}: ${(e as Error).message}`);
       }
     }
-    const pruned = pol.index.prune_links ? pruneIndex(vault, moves, true) : 0;
+    const pruned = pol.index.prune_links ? pruneIndex(vault, true) : { links: 0, lines: 0 };
     let indexed = 0;
     for (const folder of byFolder.keys()) indexed += writeArchiveIndex(vault, folder, true);
 
     console.log("");
-    ok(`Moved ${moved} note(s). Pruned ${pruned} index link(s). Archive indexes list ${indexed} note(s).`);
+    ok(
+      `Moved ${moved} note(s). Pruned ${pruned.links} index link(s) (${pruned.lines} line(s) removed outright). ` +
+        `Archive indexes list ${indexed} note(s).`,
+    );
   } else {
-    const pruned = pol.index.prune_links ? pruneIndex(vault, moves, false) : 0;
+    const pruned = pol.index.prune_links ? pruneIndex(vault, false) : { links: 0, lines: 0 };
     console.log("");
-    info(`Would prune ${pruned} link(s) from index.md and regenerate the archive indexes.`);
+    info(`Would prune ${pruned.links} link(s) from index.md, removing ${pruned.lines} line(s) outright.`);
     info(`Nothing deleted, ever — files move. Re-run with ${c.bold("--apply")} to do it.`);
   }
 
