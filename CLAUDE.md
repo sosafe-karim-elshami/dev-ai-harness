@@ -74,7 +74,7 @@ Full text in `knowledge/h2-2026-strategy.md` (source: Engineering Confluence). G
 
 ## Layout
 
-- `definitions/` — `registry.json` (routing + tiers, single source of truth), `output-contract.md` (reply rules), `profile.schema.json`, `role-playbooks.json`, `discovery-queries.json`, `urgency-matrix.json`, `mcp-fallbacks.json`, `eval/golden-tasks.jsonl`.
+- `definitions/` — `registry.json` (routing + tiers, single source of truth), `output-contract.md` (reply rules), `profile.schema.json`, `role-playbooks.json`, `discovery-queries.json`, `urgency-matrix.json`, `mcp-fallbacks.json`, `retention.json` (what gets archived, when), `eval/golden-tasks.jsonl`.
 - `knowledge/` — committed team memory; `knowledge/anti-patterns/` is the negative-results store, checked before answering.
 - `workspace/` — gitignored clones of the repos the user maintains (`harness-workspace`).
 - `.claude/skills|commands|hooks` — the harness itself. Hooks: `confirm-outward-actions.sh` (PreToolUse guard) and `log-skill-run.sh` (PostToolUse observability → `runs.jsonl`, read by `harness metrics`).
@@ -87,3 +87,4 @@ Each dev has a personal cross-session vault; **setup is shared, content is priva
 - Shared and committed here: `definitions/vault-templates/`, `.claude/skills/harness-onboarding/scaffold-vault.sh`, `.claude/commands/notes.md`. `/setup` step 4 scaffolds the vault and records `vaultPath`.
 - The global **`/notes`** command captures and searches the vault from any session or repo. Never write outside `vaultPath`; if unset, tell the user to run `/setup`.
 - Vault writes are local and safe. Outward actions still go through the guard hook.
+- **Retention:** dated notes age out of the live folders into `<folder>/archive/` via `harness archive` (weekly cron, Monday 07:50), per `definitions/retention.json`. Nothing is ever deleted. When writing a note, don't reference an archived path — link by filename so the wikilink survives the move.

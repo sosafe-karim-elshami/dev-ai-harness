@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "$comment": [
+    "Retention policy for the harness's own output. The vault accumulates one note per",
+    "day per surface — digests, meetings, monitoring snapshots — forever. Left alone the",
+    "live folders stop being scannable, which is the actual cost: a `## Recent` list with",
+    "120 entries is not recent.",
+    "",
+    "This encodes the convention already in the vault: date-stamped notes older than the",
+    "cutoff move to a flat `<folder>/archive/`, and their links leave the index. Nothing",
+    "is deleted, ever. `harness archive` is a dry run unless given --apply."
+  ],
+
+  "default_after_days": 30,
+
+  "folders": {
+    "digests": {
+      "strategy": "archive",
+      "after_days": 30,
+      "date_from": "filename-prefix",
+      "note": "Daily standup/checkin files, plus dated variants like <date>-groom.md."
+    },
+    "meetings": {
+      "strategy": "archive",
+      "after_days": 30,
+      "date_from": "filename-prefix",
+      "note": "Agendas and notes. Archiving keeps prior-occurrence lookup working — prep-assess matches by title stem and reads the archive too."
+    },
+    "monitoring": {
+      "strategy": "archive",
+      "after_days": 30,
+      "date_from": "filename-prefix",
+      "note": "Dated production-health snapshots. Undated topical notes here are exempt by the no-date rule."
+    },
+    "growth": {
+      "strategy": "archive",
+      "after_days": 180,
+      "date_from": "filename-prefix",
+      "note": "Visibility audits and talk outlines stay live far longer — they are evidence for performance conversations. idp-tracker.md is exempt outright."
+    },
+    "knowledge": {
+      "strategy": "keep",
+      "note": "Topical, not chronological. A two-year-old architecture note can be the most load-bearing file in the vault. Archive these by hand, or let `harness memory audit` flag staleness."
+    },
+    "memory": {
+      "strategy": "keep",
+      "note": "Durable by definition. Curation belongs to `harness memory audit`, which surfaces candidates and never deletes."
+    }
+  },
+
+  "exempt": {
+    "filenames": ["index.md", "idp-tracker.md", "how-this-works.md", "memory-index.md"],
+    "rules": [
+      "No YYYY-MM-DD prefix in the filename → exempt. Undated means topical, and topical means a human decides.",
+      "Today's date → never archived, whatever the cutoff.",
+      "Already inside an archive/ folder → skip.",
+      "Any note whose frontmatter carries `pinned: true` → exempt."
+    ]
+  },
+
+  "index": {
+    "prune_links": true,
+    "$comment": "Archived notes' links are removed from index.md, matching the existing convention: the index lists what's live. An `<folder>/archive/index.md` is generated so archived notes stay reachable rather than orphaned.",
+    "recent_section": "## Recent"
+  },
+
+  "not_archived": {
+    "runs.jsonl": "Read in full by `harness metrics` for all-time counts; rotating it would silently reset the observability baseline. It grows ~1 line per skill invocation — negligible.",
+    "graph.json": "Rebuilt wholesale by `harness graph build`. No history to retain.",
+    "system.json": "Overwritten on every `harness sync`. A snapshot, not a log.",
+    "workspace/": "Gitignored clones. Managed by `harness-workspace`, not retention."
+  }
+}

@@ -37,6 +37,7 @@ import { evaluate } from "./eval.js";
 import { registry } from "./registry.js";
 import { doctor } from "./doctor.js";
 import { system } from "./system.js";
+import { archive } from "./archive.js";
 import { metrics } from "./observability.js";
 import { graphPath } from "./paths.js";
 
@@ -48,6 +49,8 @@ const SLASH: Record<string, string> = {
   monitoring: "/monitoring",
   groom: "/groom",
   harness: "/harness",
+  checkin: "/checkin",
+  review: "/review",
   // Follow-up sugar: jump straight into the meetings follow-up flow (ingest the
   // Gemini transcript for the most recent/named meeting, then draft action items).
   followup: "/meeting follow up: ingest the most recent meeting's Gemini transcript and draft action items",
@@ -85,6 +88,8 @@ async function main(argv: string[]): Promise<number> {
       return registry(rest);
     case "doctor":
       return doctor(rest);
+    case "archive":
+      return archive(rest);
     case "metrics":
       return metrics(rest);
     case "mcp":
@@ -352,6 +357,7 @@ function usage(): number {
       `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
       `  harness registry check|sync|show ${c.dim("routing single source of truth: drift check, regen CLAUDE.md, tiers")}\n` +
       `  harness doctor [--json]         ${c.dim("probe which capabilities this environment can actually reach")}\n` +
+      `  harness archive [--apply]       ${c.dim("retire dated vault notes past the cutoff (dry run by default; never deletes)")}\n` +
       `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +
       `  harness sessions                ${c.dim("list saved contexts + session ids")}\n` +
       `  harness reset <context>         ${c.dim("forget a context's session")}\n` +
