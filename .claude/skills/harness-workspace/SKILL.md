@@ -22,7 +22,7 @@ allowed-tools: >-
 
 # Harness Workspace
 
-Bring the user's maintained repos onto disk under `workspace/` (gitignored) and keep them
+Bring the user's maintained repos onto disk under `${CLAUDE_PLUGIN_ROOT}/workspace/` (gitignored) and keep them
 fresh, so grounding workflows can Grep real code instead of guessing.
 
 ## Inputs
@@ -32,10 +32,10 @@ fresh, so grounding workflows can Grep real code instead of guessing.
 
 ## Steps
 
-1. Survey `workspace/`: cloned already, in the profile but missing, on disk but not in the profile.
+1. Survey `${CLAUDE_PLUGIN_ROOT}/workspace/`: cloned already, in the profile but missing, on disk but not in the profile.
 2. Show the plan — to clone, to update, to leave alone — and ask once before touching anything.
-3. Clone approved: `gh repo clone <full_name> workspace/<name>`. Default branch only; never switch branches.
-4. Update approved: `git -C workspace/<name> fetch --all --prune`, then fast-forward `pull`
+3. Clone approved: `gh repo clone <full_name> ${CLAUDE_PLUGIN_ROOT}/workspace/<name>`. Default branch only; never switch branches.
+4. Update approved: `git -C ${CLAUDE_PLUGIN_ROOT}/workspace/<name> fetch --all --prune`, then fast-forward `pull`
    **only if** the tree is clean and on a tracking branch. Dirty → report and skip, never overwrite.
 5. Set `cloned: true` for each success and write the profile back (`jq empty` to validate).
 

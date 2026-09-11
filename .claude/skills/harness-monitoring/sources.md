@@ -41,7 +41,7 @@ and suggest `/setup --field team`.
 
 ## Role emphasis
 
-Per `definitions/role-playbooks.json` → `person.role_class`:
+Per `${CLAUDE_PLUGIN_ROOT}/definitions/role-playbooks.json` → `person.role_class`:
 
 - **ic** — errors touching my repos first.
 - **manager / staff** — team-wide alerting, SLA and error-budget risk, cross-service trends,

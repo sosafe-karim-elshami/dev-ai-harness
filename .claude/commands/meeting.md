@@ -1,7 +1,7 @@
 Prepare for, run, or follow up on a meeting.
 
 Invoke the **harness-meetings** skill. Pick the mode from what the user asks:
-- **prep** (default) — build an agenda from Calendar + Jira + recent PRs and save it to `.scratch/meetings/`.
+- **prep** (default) — build an agenda from Calendar + Jira + recent PRs and save it to `${CLAUDE_PLUGIN_ROOT}/.scratch/meetings/`.
 - **notes** — capture discussion, decisions, and action items into the meeting file. For a finished meeting, **ingest the Gemini notes Google Doc** (Drive → Gmail → Meetily → pasted, first that works) and summarize it into the notes file instead of typing.
 - **follow-up** — extract action items and push them to Jira/Slack (batched, confirmed, guard-gated). If no notes file exists yet, ingest the transcript and build one first.
 

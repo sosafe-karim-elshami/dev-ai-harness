@@ -31,7 +31,7 @@ Show the user their work-in-flight, and let them fix hygiene with one confirmati
 
 `~/.claude/sosafe-harness/profile.json` (missing → `/setup`): `jira.project_keys`, `repos`,
 `team.compass_alias`, `preferences.sprint_length_days`, `person.role_class`. Emphasis per
-`definitions/role-playbooks.json` → `pm_emphasis`. Render formats in `report-templates.md`.
+`${CLAUDE_PLUGIN_ROOT}/definitions/role-playbooks.json` → `pm_emphasis`. Render formats in `report-templates.md`.
 
 ## Steps
 
@@ -43,7 +43,7 @@ Show the user their work-in-flight, and let them fix hygiene with one confirmati
    {compass_alias}, last {sprint_length_days} days, flag gate regressions." Empty
    `compass_alias` → say metrics are unavailable, suggest `/setup --field team`. Never
    reimplement Compass queries.
-4. **Render** grouped by problem, ordered by `definitions/urgency-matrix.json`, each line
+4. **Render** grouped by problem, ordered by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`, each line
    carrying its own link and proposed fix. Propose only — apply nothing yet.
 
 ## Output

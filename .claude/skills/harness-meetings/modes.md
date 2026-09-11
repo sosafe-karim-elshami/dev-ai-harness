@@ -7,7 +7,7 @@ Detail for the three modes. Structure for every file written here comes from
 
 Resolve once: `jq -r '.vaultPath' ~/.claude/sosafe-harness/config.json` → `$VAULT`. Notes go
 to `$VAULT/meetings/<YYYY-MM-DD>-<slug>.md`. Unset, empty, or missing folder → fall back to
-repo-local `.scratch/meetings/<date>-<slug>.md` (gitignored) and say so. When writing to the
+repo-local `${CLAUDE_PLUGIN_ROOT}/.scratch/meetings/<date>-<slug>.md` (gitignored) and say so. When writing to the
 vault, add a `[[wikilink]]` under "## Recent" in `$VAULT/index.md`.
 
 ## Prep

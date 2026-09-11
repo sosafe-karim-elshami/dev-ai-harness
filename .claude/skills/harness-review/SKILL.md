@@ -32,7 +32,7 @@ skills own the rubrics — this skill owns *which* of them to run and how to rec
 ## Inputs
 
 The diff: `git diff` against the merge base, or `gh pr diff <n>` for a PR. `profile.json` for
-repo scope; `system.json` for ownership and service boundaries. `knowledge/anti-patterns/` —
+repo scope; `system.json` for ownership and service boundaries. `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/` —
 check it before reporting anything.
 
 ## Steps

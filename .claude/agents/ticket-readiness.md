@@ -16,7 +16,7 @@ You are given ONE Jira ticket key. Judge whether it could be picked up tomorrow.
 2. Call `sosafe-ticket-loop:check-ticket-quality` → verdict `feasible` | `too-big` | `blocked`, plus its suggested comment.
 3. Call `sosafe-ticket-loop:estimate-ticket-size` → overall plus per-criterion t-shirt size (business-logic, UI, technical; XS–XL).
 4. For `blocked`, name exactly what information is missing. For `too-big`, name the seams it should split along.
-5. Classify with `definitions/urgency-matrix.json`.
+5. Classify with `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`.
 
 Do not use `review-automated-tickets` — it is scoped to `ai-automated` tickets in `Ready for Dev` and will silently skip an untagged backlog.
 

@@ -12,7 +12,7 @@ Invoke **harness-groom**. It reuses the marketplace (does not reimplement groomi
 4. **Route** — `feasible` → keep; `too-big` → offer `sosafe-ticket-loop:decompose-ticket`
    (delegates creation to `sosafe-planning:sosafe-jira-planning`); `blocked` → collect
    the missing info + suggested comment.
-5. **Prioritize + save** — order by `definitions/urgency-matrix.json`; write a groom
+5. **Prioritize + save** — order by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`; write a groom
    snapshot to `$VAULT/digests/<date>-groom.md`.
 6. **Apply (gated)** — batch every Jira write and ask once; autonomous runs draft only.
 

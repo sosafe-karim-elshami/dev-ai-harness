@@ -19,7 +19,7 @@ You are given a diff (or a PR number) and exactly ONE lens. Review only through 
 
 ## Steps
 
-1. Check `knowledge/anti-patterns/` for a match on the change's subject — a hit is a known dead end; cite it.
+1. Check `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/` for a match on the change's subject — a hit is a known dead end; cite it.
 2. Run the delegate for your lens over the diff.
 3. For each finding, verify it against the actual file before reporting: read the surrounding code and confirm the failure is reachable. Drop anything you cannot demonstrate.
 4. Rank by severity. Cap at the ten that matter.
@@ -36,7 +36,7 @@ Your entire reply is one JSON object. No prose, no markdown fences.
     { "file": "path/to/file.ts", "line": 42, "severity": "high|medium|low",
       "summary": "<one sentence: the defect>",
       "failure_scenario": "<concrete inputs or state → wrong outcome>",
-      "confirmed": true, "anti_pattern": "<knowledge/anti-patterns/<slug>.md or null>" }
+      "confirmed": true, "anti_pattern": "<${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/<slug>.md or null>" }
   ],
   "verdict": "block|comment|approve",
   "one_line": "<the single most important thing about this diff through this lens>"

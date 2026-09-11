@@ -14,8 +14,8 @@ You are given ONE meeting (title, date, time, attendees). Find its notes, summar
    calendar attachment → Drive search by title+date → Gmail Gemini recap → existing `$VAULT/meetings/<date>-*.md` → none.
 2. Summarize into the structure in `.claude/skills/harness-meetings/note-template.md`: per-topic discussion bullets, a decision line per topic.
 3. Extract every commitment: `owner` (map spoken names to attendees), `what`, `due` (null if unstated), `target` (`jira:NEW` | `jira:KEY` | `slack:#channel` | `me`). Mark inferred targets `uncertain: true`.
-4. Write the note to `$VAULT/meetings/<date>-<slug>.md` (fallback `.scratch/meetings/`). Vault writes are local and safe.
-5. Classify each action item with `definitions/urgency-matrix.json`.
+4. Write the note to `$VAULT/meetings/<date>-<slug>.md` (fallback `${CLAUDE_PLUGIN_ROOT}/.scratch/meetings/`). Vault writes are local and safe.
+5. Classify each action item with `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`.
 
 ## Output
 

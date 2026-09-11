@@ -1,6 +1,6 @@
 # Meeting note template
 
-Stored at `.scratch/meetings/<YYYY-MM-DD>-<slug>.md` (gitignored). Agenda and notes share one file so follow-up can extract action items in place.
+Stored at `${CLAUDE_PLUGIN_ROOT}/.scratch/meetings/<YYYY-MM-DD>-<slug>.md` (gitignored). Agenda and notes share one file so follow-up can extract action items in place.
 
 ```markdown
 # <Meeting title> — <YYYY-MM-DD HH:MM>

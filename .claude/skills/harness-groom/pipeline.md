@@ -35,7 +35,7 @@ The subagent delegates to `sosafe-ticket-loop:check-ticket-quality` and
 
 ## 4 — Prioritize and present
 
-Order by `definitions/urgency-matrix.json`: leadership/overdue first, then P1 → P2 → P3, then
+Order by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`: leadership/overdue first, then P1 → P2 → P3, then
 due date. One line per ticket:
 
 ```

@@ -10,13 +10,13 @@ Sweep Jira and GitHub for work-in-flight problems. Gather only — never fix, ne
 
 ## Inputs
 
-Read `~/.claude/sosafe-harness/profile.json`: `jira.project_keys`, `repos`, `person.github_login`, `person.jira_account_id`. Query templates in `definitions/discovery-queries.json`.
+Read `~/.claude/sosafe-harness/profile.json`: `jira.project_keys`, `repos`, `person.github_login`, `person.jira_account_id`. Query templates in `${CLAUDE_PLUGIN_ROOT}/definitions/discovery-queries.json`.
 
 ## Steps
 
 1. Jira: run `jira.stale_in_progress_jql`, `jira.missing_estimate_jql`, `jira.unassigned_jql`, scoped to `project_keys`.
 2. GitHub: across `repos`, `gh pr list` / `gh search prs` for open, draft, awaiting-my-review, approved-unmerged, and stale (no update > 3d).
-3. Classify every finding with `definitions/urgency-matrix.json` — `kind`, `priority`, `flags`.
+3. Classify every finding with `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json` — `kind`, `priority`, `flags`.
 4. Propose one concrete fix per Jira finding (assign / estimate / comment / transition). Do not apply it.
 
 ## Output

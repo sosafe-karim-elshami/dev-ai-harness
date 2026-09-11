@@ -38,10 +38,10 @@ today and what's coming — touching no remote state unless the user confirms.
 ## Inputs
 
 `profile.json` (missing → `/setup`, do what's possible). `$VAULT` from `config.json` →
-`vaultPath`, else `.scratch/checkins/`. `$NOW`/`$TODAY` from `date`.
-`definitions/urgency-matrix.json` for classification. Daily file format:
+`vaultPath`, else `${CLAUDE_PLUGIN_ROOT}/.scratch/checkins/`. `$NOW`/`$TODAY` from `date`.
+`${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json` for classification. Daily file format:
 **`daily-template.md`**. Prep scoring: **`prep-rubric.md`**. Capability chains:
-`definitions/mcp-fallbacks.json` — probe before use; most connectors are session-only.
+`${CLAUDE_PLUGIN_ROOT}/definitions/mcp-fallbacks.json` — probe before use; most connectors are session-only.
 Mode: **interactive** (user ran `/checkin` — ask for their own items at the end) or
 **autonomous** (cron — never prompt).
 
@@ -55,7 +55,7 @@ Mode: **interactive** (user ran `/checkin` — ask for their own items at the en
    others by name. Classify each with the urgency matrix — `kind`, `priority`, `flags`. That
    drives ordering everywhere; never fall back to due-date alone.
 3. **Docs to update.** For each decision returned by `meeting-ingest`, search Confluence and
-   `$VAULT/knowledge/` for a page it contradicts or extends. List `[title](url) — reason`.
+   `$VAULT/${CLAUDE_PLUGIN_ROOT}/knowledge/` for a page it contradicts or extends. List `[title](url) — reason`.
    Flag only — never auto-update a page.
 4. **Tomorrow's plan.** Tomorrow's meetings with their prep estimates; Jira assigned to the
    user (`In Progress`/`To Do`, due tomorrow or earlier, max 10); carry-over open `[me]` items.

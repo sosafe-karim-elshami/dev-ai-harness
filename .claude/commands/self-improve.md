@@ -5,4 +5,4 @@ Invoke the **harness-self-improve** skill. It reviews recent harness activity (d
 Hard rules:
 - Never commit, push, send, or change remote state. Every proposal is a diff/description for a human to apply.
 - Surface proposals as a prioritized list; if the user says "apply", make the local file edits only (still no commit/push) and stop.
-- Self-documentation lands in `knowledge/` (committed, team-private). Publishing anything outward (e.g. Confluence) is gated and off unless explicitly asked.
+- Self-documentation lands in `${CLAUDE_PLUGIN_ROOT}/knowledge/` (committed, team-private). Publishing anything outward (e.g. Confluence) is gated and off unless explicitly asked.

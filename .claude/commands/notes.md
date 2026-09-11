@@ -19,7 +19,7 @@ jq -r '.vaultPath // empty' ~/.claude/sosafe-harness/config.json
 ```
 
 If it's empty or the folder doesn't exist, the dev hasn't scaffolded their vault
-yet — tell them to run `/setup` (which scaffolds it from `definitions/vault-templates`
+yet — tell them to run `/setup` (which scaffolds it from `${CLAUDE_PLUGIN_ROOT}/definitions/vault-templates`
 and records `vaultPath`). Do not guess a path. Never write notes outside the vault.
 Call the resolved directory `$VAULT`.
 
@@ -30,7 +30,7 @@ Interpret the first word as the action (default to **capture** if it's plain pro
 ### capture / add
 Write a new note (or append to an existing one when the topic clearly matches).
 - Choose the subfolder by kind: `memory/`, `meetings/`, `digests/`, `monitoring/`,
-  or `knowledge/` (default `knowledge/` for general facts).
+  or `${CLAUDE_PLUGIN_ROOT}/knowledge/` (default `${CLAUDE_PLUGIN_ROOT}/knowledge/` for general facts).
 - Filename: kebab-case slug of the title, `.md`.
 - Frontmatter every note:
   ```

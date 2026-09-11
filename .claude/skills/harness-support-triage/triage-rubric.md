@@ -20,9 +20,9 @@ For Jira: support-labelled, `statusCategory != Done`, and either unassigned or w
 
 Walk it in order and stop at the first authoritative source.
 
-1. `knowledge/anti-patterns/` — Grep here **first**. A match is a recorded wrong answer: don't repeat it, and start from its "Do instead". See `knowledge/anti-patterns/README.md`.
-2. `knowledge/*.md` (team memory) — Grep for the topic; reuse + cite if matched.
-3. `workspace/<repo>` (cloned code) — Grep/Read for authoritative behavior; cite `path:line`.
+1. `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/` — Grep here **first**. A match is a recorded wrong answer: don't repeat it, and start from its "Do instead". See `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/README.md`.
+2. `${CLAUDE_PLUGIN_ROOT}/knowledge/*.md` (team memory) — Grep for the topic; reuse + cite if matched.
+3. `${CLAUDE_PLUGIN_ROOT}/workspace/<repo>` (cloned code) — Grep/Read for authoritative behavior; cite `path:line`.
 4. Confluence (team spaces) — `confluence.ground_answer_cql`; cite the page.
 
 If none of these yield a confident answer: **do not guess.** Summarize what you found, state the gap, and ask the user how to proceed (or tag the right owner).

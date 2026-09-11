@@ -26,20 +26,20 @@ allowed-tools: >-
 
 # Harness Self-Improve
 
-Red/green TDD over the harness itself. `definitions/eval/golden-tasks.jsonl` is the test
+Red/green TDD over the harness itself. `${CLAUDE_PLUGIN_ROOT}/definitions/eval/golden-tasks.jsonl` is the test
 suite; `harness eval` is the runner; `harness registry check` is the invariant gate.
 
 ## Inputs
 
 Scorecards in `~/.claude/sosafe-harness/digests/eval-*.md`; `runs.jsonl` (via `harness
-metrics`); `~/.claude/sosafe-harness/memory/*.md`; `knowledge/` and
-`knowledge/anti-patterns/`; `definitions/registry.json`; `git log`/`git diff`.
+metrics`); `~/.claude/sosafe-harness/memory/*.md`; `${CLAUDE_PLUGIN_ROOT}/knowledge/` and
+`${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/`; `${CLAUDE_PLUGIN_ROOT}/definitions/registry.json`; `git log`/`git diff`.
 
 ## Steps
 
 1. **Verify the last change landed.** Diff the newest scorecard against the previous one.
    Improved → note the win. Flat or regressed → the change was noise or proxy-gaming:
-   recommend reverting and record it in `knowledge/anti-patterns/` so it isn't re-proposed.
+   recommend reverting and record it in `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/` so it isn't re-proposed.
 2. **Confirm red before proposing.** A proposal must name a golden task that *currently
    fails*, or a `registry check` error. A "fix" for a passing task wastes the cycle and
    risks regression — verify failure first, always.
@@ -54,7 +54,7 @@ metrics`); `~/.claude/sosafe-harness/memory/*.md`; `knowledge/` and
 ## Output
 
 One line per proposal: `<file> — <edit> — targets <task-id> — expect <movement>`. Grouped by
-impact, highest first. Never re-propose anything recorded in `knowledge/anti-patterns/`.
+impact, highest first. Never re-propose anything recorded in `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/`.
 
 ## Gates
 

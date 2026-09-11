@@ -35,7 +35,7 @@ per-stage detail lives in **`pipeline.md`**, and the rubrics belong to `sosafe-t
 ## Inputs
 
 `profile.json` (missing → `/setup`): `jira.project_keys`, `person.role_class`. `$VAULT` from
-`config.json` → `vaultPath`, else `.scratch/`. `definitions/urgency-matrix.json` for ordering.
+`config.json` → `vaultPath`, else `${CLAUDE_PLUGIN_ROOT}/.scratch/`. `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json` for ordering.
 Scope: default to `jira.project_keys`; a named board, epic, sprint, or single ticket narrows it.
 
 ## Steps

@@ -10,14 +10,14 @@ Find support that is slipping. Identify only — do not draft replies, do not po
 
 ## Inputs
 
-`~/.claude/sosafe-harness/profile.json`: `slack.support_channels`, `jira.project_keys`, `person.slack_user_id`. Rubric in `.claude/skills/harness-support-triage/triage-rubric.md`; windows in `definitions/discovery-queries.json`.
+`~/.claude/sosafe-harness/profile.json`: `slack.support_channels`, `jira.project_keys`, `person.slack_user_id`. Rubric in `.claude/skills/harness-support-triage/triage-rubric.md`; windows in `${CLAUDE_PLUGIN_ROOT}/definitions/discovery-queries.json`.
 
 ## Steps
 
 1. Per support channel, `slack_read_channel` over the recent window; apply the rubric. Flag a thread when it asks something, has no team reply within `slack.unanswered_window_hours` (default 4h), and shows no resolution signal (✅ reaction, "thanks", "solved").
 2. Jira: `jira.open_support_jql`, plus any support ticket with no team comment in > 1 business day.
 3. Rank by age × signal — customer-facing outranks internal.
-4. Classify each with `definitions/urgency-matrix.json`.
+4. Classify each with `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`.
 
 ## Output
 

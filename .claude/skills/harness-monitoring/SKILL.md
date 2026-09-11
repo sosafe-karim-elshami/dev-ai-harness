@@ -33,7 +33,7 @@ connected. **"If available" is the whole design:** probe, use, or skip in one li
 
 `~/.claude/sosafe-harness/profile.json` (missing → `/setup`): `integrations.sentry`,
 `integrations.datadog`, `integrations.amplitude`, `team.compass_alias`, `repos`. Probe
-recipes and role emphasis: `sources.md`. Fallbacks: `definitions/mcp-fallbacks.json`.
+recipes and role emphasis: `sources.md`. Fallbacks: `${CLAUDE_PLUGIN_ROOT}/definitions/mcp-fallbacks.json`.
 
 ## Steps
 

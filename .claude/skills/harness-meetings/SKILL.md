@@ -39,8 +39,8 @@ file structure in `note-template.md`.
 ## Inputs
 
 `~/.claude/sosafe-harness/profile.json` (missing → `/setup`). `$VAULT` from
-`config.json` → `vaultPath`, else `.scratch/meetings/`. Fallback chains for Calendar, Drive,
-and Gmail: `definitions/mcp-fallbacks.json`.
+`config.json` → `vaultPath`, else `${CLAUDE_PLUGIN_ROOT}/.scratch/meetings/`. Fallback chains for Calendar, Drive,
+and Gmail: `${CLAUDE_PLUGIN_ROOT}/definitions/mcp-fallbacks.json`.
 
 ## Steps
 
@@ -64,5 +64,5 @@ item; the full text lives in the note.
 ## Gates
 
 Batch every Jira create/comment and Slack post into **one** confirmation naming each target.
-Confluence publishing is off unless asked. Vault and `.scratch/` writes are local and safe.
+Confluence publishing is off unless asked. Vault and `${CLAUDE_PLUGIN_ROOT}/.scratch/` writes are local and safe.
 Respect `preferences.confirm_outward_actions`; the guard hook fires regardless.

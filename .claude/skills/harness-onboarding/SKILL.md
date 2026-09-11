@@ -42,8 +42,8 @@ what this writes. **Nothing about any team is hardcoded — it all comes from di
 
 ## Inputs
 
-`definitions/discovery-queries.json` (templates), `definitions/profile.schema.json` (shape),
-`definitions/role-playbooks.json` (the three `role_class` labels). The exact query sequence
+`${CLAUDE_PLUGIN_ROOT}/definitions/discovery-queries.json` (templates), `${CLAUDE_PLUGIN_ROOT}/definitions/profile.schema.json` (shape),
+`${CLAUDE_PLUGIN_ROOT}/definitions/role-playbooks.json` (the three `role_class` labels). The exact query sequence
 and the ask-vs-query rule per field: **`discovery-recipe.md`** — follow it, don't improvise.
 
 ## Steps

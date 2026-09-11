@@ -42,8 +42,8 @@ Emphasis per `role-playbooks.json` → `support_emphasis`. Rubric: `triage-rubri
    across Slack and Jira and returns the ranked queue as JSON. Never scan inline.
 2. Present the queue compactly: source, who's waiting, age, one-line question, link.
 3. For each item the user picks, **ground before writing**, in the order in
-   `triage-rubric.md` → "Grounding chain": `knowledge/anti-patterns/` → `knowledge/` →
-   the repo under `workspace/` → Confluence. Stop at the first authoritative source.
+   `triage-rubric.md` → "Grounding chain": `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/` → `${CLAUDE_PLUGIN_ROOT}/knowledge/` →
+   the repo under `${CLAUDE_PLUGIN_ROOT}/workspace/` → Confluence. Stop at the first authoritative source.
 4. Draft a reply that answers *and* cites (code path, knowledge entry, Confluence/Jira link).
    Can't ground it → say what's missing and ask the user. Never guess.
 5. Stage Slack replies with `slack_send_message_draft` and show them inline. Do not post.
@@ -57,8 +57,8 @@ nothing else. No preamble about what you're about to do.
 
 - **Sending:** batch the approved drafts, show each target + text, ask once, then post via
   `slack_send_message` (in-thread) / `addCommentToJiraIssue`. The guard hook also prompts.
-- **After a confirmed send,** if the question will recur, offer to write `knowledge/<slug>.md`
-  per `knowledge/README.md` with `sources` pointing at the thread/ticket.
-- **If a sent answer turns out wrong,** offer to record it in `knowledge/anti-patterns/<slug>.md`
+- **After a confirmed send,** if the question will recur, offer to write `${CLAUDE_PLUGIN_ROOT}/knowledge/<slug>.md`
+  per `${CLAUDE_PLUGIN_ROOT}/knowledge/README.md` with `sources` pointing at the thread/ticket.
+- **If a sent answer turns out wrong,** offer to record it in `${CLAUDE_PLUGIN_ROOT}/knowledge/anti-patterns/<slug>.md`
   per that folder's README — what was tried, why it failed, what to do instead. A recorded
   loss is what stops the harness repeating it.

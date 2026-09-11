@@ -12,7 +12,7 @@ create from the template below.
 
 Meeting status emoji: `✅` done with notes · `⏳` done, no notes yet · `🔜` still upcoming.
 
-Urgency markers from `definitions/urgency-matrix.json`: priority `🔴 P1` / `🟡 P2` / `⚪ P3`,
+Urgency markers from `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`: priority `🔴 P1` / `🟡 P2` / `⚪ P3`,
 flags `⭐ leadership` / `🌐 external` / `⏰ overdue`.
 
 ## Index link
