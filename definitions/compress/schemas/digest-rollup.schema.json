@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "themes", "decisions", "docs_to_update", "merge_groups"],
+  "properties": {
+    "summary": { "type": "string", "maxLength": 700, "description": "What the period was about, 2-4 sentences, past tense, no bullet points." },
+    "themes": {
+      "type": "array", "maxItems": 6,
+      "items": { "type": "object", "additionalProperties": false, "required": ["title", "detail", "evidence"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 80 },
+          "detail": { "type": "string", "maxLength": 300 },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "description": "child rel path exactly as given in the === FILE: header" } }
+        } }
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": false, "required": ["text", "source"],
+        "properties": { "text": { "type": "string", "maxLength": 240 }, "source": { "type": "string" }, "ticket": { "type": "string" } } }
+    },
+    "docs_to_update": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": false, "required": ["doc", "why", "source"],
+        "properties": { "doc": { "type": "string" }, "why": { "type": "string", "maxLength": 160 }, "source": { "type": "string" } } }
+    },
+    "merge_groups": {
+      "type": "array",
+      "description": "Open-item ids that are the same task phrased differently. Ids only; never text.",
+      "items": { "type": "object", "additionalProperties": false, "required": ["keep", "merge"],
+        "properties": { "keep": { "type": "string", "pattern": "^i\\d{2,4}$" }, "merge": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^i\\d{2,4}$" } } } }
+    }
+  }
+}

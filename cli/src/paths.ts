@@ -16,6 +16,8 @@ export interface HarnessConfig {
   defaultContext?: string;
   /** Absolute path to the user's Obsidian knowledge vault (set by /setup). */
   vaultPath?: string;
+  /** Optional: the team vault whose harness/products/*.yaml resolves tickets to repos. */
+  ltVaultPath?: string;
 }
 
 export const configDir = (): string => join(homedir(), ".claude", "sosafe-harness");
@@ -26,6 +28,10 @@ export const memoryDir = (): string => join(configDir(), "memory");
 export const digestsDir = (): string => join(configDir(), "digests");
 export const graphPath = (): string => join(configDir(), "graph.json");
 export const cacheDir = (): string => join(configDir(), "cache");
+export const logsDir = (): string => join(configDir(), "logs");
+export const compressLogPath = (): string => join(configDir(), "compress.jsonl");
+export const compressCacheDir = (): string => join(cacheDir(), "compress");
+export const lastRunPath = (): string => join(configDir(), "last-run.json");
 /** Last-known-good structured dashboard snapshot, for fast `--cached` renders. */
 export const dashboardCachePath = (): string => join(cacheDir(), "dashboard.json");
 

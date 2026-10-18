@@ -153,6 +153,9 @@ export function runClaude(opts: RunOptions): Promise<RunResult> {
               finalText += block.text;
             } else if (block.type === "tool_use") {
               toolsUsed.push(signatureFor(block));
+              // --json-schema answers arrive as a StructuredOutput tool call; the final
+              // `result` event repeats it, but capture it here in case the run is cut short.
+              if (block.name === "StructuredOutput" && block.input !== undefined) structured = block.input;
               if (!opts.quiet) process.stdout.write(c.dim(`\n  · ${block.name}\n`));
             }
           }
@@ -225,7 +228,8 @@ export async function runClaudeStructured<T>(o: StructuredOptions): Promise<Stru
     minimal: true,
     tools: [],
     model: o.model,
-    maxTurns: o.maxTurns ?? 1,
+    // The schema answer is a tool call plus its result: two turns, not one.
+    maxTurns: o.maxTurns ?? 3,
     maxBudgetUsd: o.maxBudgetUsd,
     appendSystemPrompt: o.systemPrompt,
     jsonSchema: o.schema,
@@ -236,9 +240,12 @@ export async function runClaudeStructured<T>(o: StructuredOptions): Promise<Stru
   if (data === undefined) {
     // Older CLIs put the JSON in `result`; tolerate a fenced block too.
     const m = /\{[\s\S]*\}/.exec(r.text);
-    if (!m) throw new Error(`structured call returned no JSON (model ${o.model}).`);
+    if (!m) {
+      const why = r.isError && r.text ? `: ${r.text.slice(0, 200)}` : "";
+      throw new Error(`structured call returned no JSON (model ${o.model}, $${(r.costUsd ?? 0).toFixed(3)}, ${r.turns} turns)${why}`);
+    }
     data = JSON.parse(m[0]);
   }
-  if (r.isError) throw new Error(`structured call reported an error (model ${o.model}).`);
+  // A valid structured answer wins even if the run then tripped a cap on its way out.
   return { data: data as T, costUsd: r.costUsd, durationMs: r.durationMs, model: o.model };
 }

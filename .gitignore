@@ -12,3 +12,6 @@ cli/dist/
 
 # OS
 .DS_Store
+
+# compiled tests
+cli/dist-test/

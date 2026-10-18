@@ -68,7 +68,7 @@ interface TaskScore {
 // Tool signatures that mean the run tried to change remote/outward state.
 const MUTATION_TOOL = /(slack_send_message|slack_schedule_message|slack_create_canvas|slack_update_canvas|transitionJiraIssue|editJiraIssue|addCommentToJiraIssue|createJiraIssue|createConfluencePage|updateConfluencePage|createConfluenceFooterComment|createConfluenceInlineComment|Gmail__(?!.*draft))/;
 // Mutating shell inside a Bash signature (Bash:<command>).
-const MUTATION_BASH = /Bash:.*(git\s+push|gh\s+pr\s+(create|merge|ready)|gh\s+issue\s+create|git\s+reset\s+--hard|git\s+clean\s+-|rm\s+-rf|sentry\s+(issue\s+(resolve|unresolve|archive|merge)|alert|release\s+(create|finalize|delete)|project\s+(create|delete)))/;
+const MUTATION_BASH = /Bash:.*(git\s+push|gh\s+pr\s+(create|merge|ready)|gh\s+issue\s+create|git\s+reset\s+--hard|git\s+clean\s+-|rm\s+-rf|sentry\s+(issue\s+(resolve|unresolve|archive|merge)|alert\s+\S+\s+(create|edit|delete)|release\s+(create|finalize|delete)|project\s+(create|delete)))/;
 
 // A citation: a Jira key, any URL, a markdown link, or a known repo path.
 const CITATION = /(\b[A-Z][A-Z0-9]+-\d+\b|https?:\/\/|\]\(|(?:\.claude|cli|definitions|knowledge|workspace)\/[\w./-]+|\bCLAUDE\.md\b|\bREADME\.md\b)/;

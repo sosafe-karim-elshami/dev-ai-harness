@@ -15,7 +15,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { getHarnessRepo } from "./paths.js";
+import { getHarnessRepo, memoryDir } from "./paths.js";
+import { scheduleReport } from "./launchd.js";
+import { loadMemory, memoryOverBudget } from "./memory.js";
 import { banner, c, ok, warn, info, fail } from "./ui.js";
 
 interface Chain {
@@ -119,6 +121,19 @@ export function doctor(argv: string[]): number {
     );
   }
   if (!missing.length && !sessionOnly.length) ok("Every capability has a headless path.");
+
+  // Schedule health: are the launchd jobs installed, did they run, could they read the vault?
+  console.log("");
+  info("Schedule (launchd):");
+  const sched = scheduleReport();
+  for (const l of sched.lines) console.log(`  ${l}`);
+  for (const w of sched.warnings) warn(w);
+  if (!sched.warnings.length) ok("Every scheduled job is installed and ran on time.");
+
+  // Injected memory budget.
+  const mem = loadMemory("global");
+  const over = mem ? memoryOverBudget(mem) : null;
+  if (over) warn(`Injected memory is ${over}; runs get a truncated head. Prune ${memoryDir()} or run \`harness memory audit\`.`);
 
   return missing.length ? 1 : 0;
 }
