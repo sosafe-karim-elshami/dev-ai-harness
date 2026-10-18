@@ -30,3 +30,14 @@ Append-only. One entry per `/self-improve` pass: what landed (with the scorecard
 - `harness install-launchd --apply` from the main checkout, then grant Full Disk Access to the nvm node binary.
 - `sosafe-ai-bouncer` install (user-level hooks).
 - Upstream: `typecheck` script + `.claude/worktrees/` gitignore in `fe-lib-course-builder` / `fe-mf-course-engine`; browser-smoke gate → task-to-pr; compress → sosafe-claude-productivity; LT config for ticket-loop.
+
+## 2026-10-18 (reflection pass)
+
+**Applied**
+- Nothing new since the previous entry (HEAD 75c0024 is a gitignore fix). No scorecard newer than the 21/26 baseline, so no delta to report.
+
+**Outstanding** (red confirmed from the 2026-10-18-12-20 scorecard; `harness registry check` is green, 15 skills)
+- Full 38-task eval still not run; 12 tasks added since the baseline have never been seen failing.
+- launchd: compress/sync/eval/self-improve all "not installed"; the old crontab block is still live (`harness doctor`).
+- Baseline failures: route-standup, route-monitoring, route-find-skill, cite-mcp-degradation, cite-system-map.
+- Telemetry: 28% of runs are "unregistered" (compress, archive, checkin, standup) and cost is only recorded for CLI runs; 6 skills never invoked.
