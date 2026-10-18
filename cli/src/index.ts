@@ -39,6 +39,7 @@ import { doctor } from "./doctor.js";
 import { system } from "./system.js";
 import { archive } from "./archive.js";
 import { compress } from "./compress.js";
+import { ship } from "./ship.js";
 import { linksCli } from "./links.js";
 import { installLaunchd, recordLastRun, vaultReadable } from "./launchd.js";
 import { metrics } from "./observability.js";
@@ -95,6 +96,8 @@ async function main(argv: string[]): Promise<number> {
       return archive(rest);
     case "compress":
       return compress(rest);
+    case "ship":
+      return ship(rest);
     case "links": {
       const vIdx = rest.findIndex((a) => a === "--vault");
       const vault = vIdx !== -1 ? rest[vIdx + 1] : readConfig()?.vaultPath;
@@ -383,7 +386,8 @@ function usage(): number {
       `  harness self-improve [--digest] ${c.dim("read-only reflection: propose harness improvements")}\n` +
       `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
       `  harness registry check|sync|show ${c.dim("routing single source of truth: drift check, regen CLAUDE.md, tiers")}\n` +
-      `  harness doctor [--json]         ${c.dim("probe which capabilities this environment can actually reach")}\n` +
+      `  harness doctor [--json] [--ship [repo]]  ${c.dim("capability probe; --ship checks the ticket-to-PR gates for a repo")}\n` +
+      `  harness ship <KEY> [--repo P] [--until verify]  ${c.dim("headless /ship: contract → implement → verify → review → pr.md (never pushes)")}\n` +
       `  harness archive [--apply]       ${c.dim("rule-only retention: move aged/expired/superseded vault notes (never deletes)")}\n` +
       `  harness compress [--apply] [--knowledge]  ${c.dim("roll up dailies → weekly → monthly, distil meetings, consolidate knowledge; dry run by default")}\n` +
       `  harness links report|repair|normalize     ${c.dim("vault wikilink health; repair re-points pre-archive links")}\n` +

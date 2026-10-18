@@ -75,6 +75,8 @@ If step 1 or 2 is empty, re-run `/setup` (or the specific `--field`).
 | `/self-improve` | Read-only reflection: propose improvements to skills/routing/knowledge as drafts (never auto-applied). |
 | `/notes` | Capture, search, and organize notes in your Obsidian knowledge vault — works from **any** repo or session. |
 | `/harness` | "What should I look at?" — routes by your role. |
+| `/ship <KEY>` | One ticket → verified **draft** PR: AC contract → `sosafe-ai-harness` implement loop → script + Semgrep + browser gates → fresh-context contract review → draft PR + Jira → In Review. `--dry-run` stops at the contract; never merges or marks ready. |
+| `harness compress` | Vault retention: dailies → weekly → monthly rollups, meeting distills, knowledge consolidation proposals; dry run by default, nothing ever deleted. Scheduled via `harness install-launchd`. |
 
 From the CLI (`cli/`): `harness dashboard` renders a role-ordered dev dashboard (PRs/Jira/meetings/support), `harness followup` runs the meeting transcript → action-items flow, and `harness sync` self-updates and rebuilds the CLI.
 

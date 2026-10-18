@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-09",
+  "generated_at": "2026-10-18",
   "$comment": [
     "THE single source of truth for harness routing, model allocation, and capability declaration.",
     "The routing table in CLAUDE.md is GENERATED from this file — run `harness registry sync`.",
@@ -8,43 +8,73 @@
     "CLAUDE.md's generated block has drifted. That check runs as part of `harness eval`.",
     "Hand-editing the CLAUDE.md block is a bug: it will be overwritten."
   ],
-
   "tiers": {
     "haiku": "Mechanical. Fetch, format, file I/O, lookup against a known index. No judgment, no ranking.",
     "sonnet": "Scan and summarize. Query tools, rank by stated criteria, condense. Bounded judgment against an explicit rubric.",
     "opus": "Judgment. Quality gates, tradeoffs, honesty about gaps, self-critique, career and strategy calls. Use when being wrong is expensive."
   },
-
   "effort": {
     "low": "Single-pass. Classification and dispatch.",
     "medium": "A few tool calls, one synthesis pass.",
     "high": "Many tool calls, cross-referencing, iterative refinement."
   },
-
   "skills": [
     {
       "name": "harness-router",
       "purpose": "Classify the ask and dispatch to one skill. Never executes the target's steps.",
-      "entry": ["/harness"],
+      "entry": [
+        "/harness"
+      ],
       "tier": "opus",
       "effort": "low",
-      "triggers": ["ambiguous ask about the user's work", "what should I look at", "which skill handles this"],
-      "reads": ["profile", "registry", "role-playbooks"],
+      "triggers": [
+        "ambiguous ask about the user's work",
+        "what should I look at",
+        "which skill handles this"
+      ],
+      "reads": [
+        "profile",
+        "registry",
+        "role-playbooks"
+      ],
       "writes": [],
-      "delegates_to": ["*"],
+      "delegates_to": [
+        "*"
+      ],
       "gates": []
     },
     {
       "name": "harness-onboarding",
       "purpose": "Discover identity, team, repos, Jira projects, Slack channels; write the profile.",
-      "entry": ["/setup"],
+      "entry": [
+        "/setup"
+      ],
       "tier": "sonnet",
       "effort": "high",
-      "triggers": ["set me up", "onboard me", "refresh my profile", "first run", "profile missing or wrong schema_version"],
-      "reads": ["github", "jira", "confluence", "slack", "profile.schema", "discovery-queries"],
-      "writes": ["profile"],
-      "delegates_to": ["harness-workspace"],
-      "gates": ["confirm-before-persist"]
+      "triggers": [
+        "set me up",
+        "onboard me",
+        "refresh my profile",
+        "first run",
+        "profile missing or wrong schema_version"
+      ],
+      "reads": [
+        "github",
+        "jira",
+        "confluence",
+        "slack",
+        "profile.schema",
+        "discovery-queries"
+      ],
+      "writes": [
+        "profile"
+      ],
+      "delegates_to": [
+        "harness-workspace"
+      ],
+      "gates": [
+        "confirm-before-persist"
+      ]
     },
     {
       "name": "harness-workspace",
@@ -52,11 +82,24 @@
       "entry": [],
       "tier": "haiku",
       "effort": "low",
-      "triggers": ["clone my repos", "pull the projects I maintain", "set up my workspace", "update my repos"],
-      "reads": ["profile", "github"],
-      "writes": ["workspace", "profile.repos[].cloned"],
+      "triggers": [
+        "clone my repos",
+        "pull the projects I maintain",
+        "set up my workspace",
+        "update my repos"
+      ],
+      "reads": [
+        "profile",
+        "github"
+      ],
+      "writes": [
+        "workspace",
+        "profile.repos[].cloned"
+      ],
       "delegates_to": [],
-      "gates": ["confirm-before-clone"]
+      "gates": [
+        "confirm-before-clone"
+      ]
     },
     {
       "name": "harness-pm",
@@ -64,126 +107,418 @@
       "entry": [],
       "tier": "sonnet",
       "effort": "high",
-      "triggers": ["how's the sprint", "team status", "Jira hygiene", "what PRs need review", "any stale tickets", "status update"],
-      "reads": ["profile", "jira", "github", "discovery-queries", "role-playbooks"],
+      "triggers": [
+        "how's the sprint",
+        "team status",
+        "Jira hygiene",
+        "what PRs need review",
+        "any stale tickets",
+        "status update"
+      ],
+      "reads": [
+        "profile",
+        "jira",
+        "github",
+        "discovery-queries",
+        "role-playbooks"
+      ],
       "writes": [],
-      "delegates_to": ["compass-analyst"],
-      "gates": ["batch-confirm-jira-writes"],
+      "delegates_to": [
+        "compass-analyst"
+      ],
+      "gates": [
+        "batch-confirm-jira-writes"
+      ],
       "subagents": [
-        { "name": "pm-scan", "tier": "sonnet", "returns": "json", "purpose": "Jira hygiene + PR sweep as structured findings" }
+        {
+          "name": "pm-scan",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "Jira hygiene + PR sweep as structured findings"
+        }
       ]
     },
     {
       "name": "harness-support-triage",
       "purpose": "Find unanswered support across Slack and Jira; draft grounded replies.",
-      "entry": ["/triage"],
+      "entry": [
+        "/triage"
+      ],
       "tier": "opus",
       "effort": "high",
-      "triggers": ["any support waiting", "unanswered questions", "triage support", "anyone need a reply"],
-      "reads": ["profile", "slack", "jira", "confluence", "knowledge", "anti-patterns", "workspace"],
-      "writes": ["knowledge"],
+      "triggers": [
+        "any support waiting",
+        "unanswered questions",
+        "triage support",
+        "anyone need a reply"
+      ],
+      "reads": [
+        "profile",
+        "slack",
+        "jira",
+        "confluence",
+        "knowledge",
+        "anti-patterns",
+        "workspace"
+      ],
+      "writes": [
+        "knowledge"
+      ],
       "delegates_to": [],
-      "gates": ["batch-confirm-before-send"],
+      "gates": [
+        "batch-confirm-before-send"
+      ],
       "subagents": [
-        { "name": "support-scan", "tier": "sonnet", "returns": "json", "purpose": "Apply the unanswered rubric per channel; return the queue, no drafts" }
+        {
+          "name": "support-scan",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "Apply the unanswered rubric per channel; return the queue, no drafts"
+        }
       ],
       "$note": "Scan is cheap and parallel; drafting needs opus because an ungrounded reply is worse than none."
     },
     {
       "name": "harness-monitoring",
       "purpose": "Read-only production health across Sentry, Datadog, Amplitude, plus Compass hygiene.",
-      "entry": ["/monitoring"],
+      "entry": [
+        "/monitoring"
+      ],
       "tier": "sonnet",
       "effort": "medium",
-      "triggers": ["any errors", "how's production", "what's alerting", "Sentry issues", "Datadog monitors", "monitoring"],
-      "reads": ["profile", "sentry", "datadog", "amplitude", "compass"],
-      "writes": ["vault/monitoring"],
+      "triggers": [
+        "any errors",
+        "how's production",
+        "what's alerting",
+        "Sentry issues",
+        "Datadog monitors",
+        "monitoring"
+      ],
+      "reads": [
+        "profile",
+        "sentry",
+        "datadog",
+        "amplitude",
+        "compass"
+      ],
+      "writes": [
+        "vault/monitoring"
+      ],
       "delegates_to": [],
-      "gates": ["never-mutate-monitoring-state"]
+      "gates": [
+        "never-mutate-monitoring-state"
+      ]
     },
     {
       "name": "harness-meetings",
       "purpose": "Meeting prep, note capture, transcript ingest, and action-item follow-up.",
-      "entry": ["/meeting"],
+      "entry": [
+        "/meeting"
+      ],
       "tier": "sonnet",
       "effort": "high",
-      "triggers": ["prep my next meeting", "what's my 2pm about", "agenda for standup", "take notes", "ingest my Gemini notes", "follow up on the meeting", "create the action items"],
-      "reads": ["profile", "calendar", "drive", "gmail", "jira", "github", "vault"],
-      "writes": ["vault/meetings", "vault/digests"],
-      "delegates_to": ["sosafe-planning"],
-      "gates": ["batch-confirm-before-push"]
+      "triggers": [
+        "prep my next meeting",
+        "what's my 2pm about",
+        "agenda for standup",
+        "take notes",
+        "ingest my Gemini notes",
+        "follow up on the meeting",
+        "create the action items"
+      ],
+      "reads": [
+        "profile",
+        "calendar",
+        "drive",
+        "gmail",
+        "jira",
+        "github",
+        "vault"
+      ],
+      "writes": [
+        "vault/meetings",
+        "vault/digests"
+      ],
+      "delegates_to": [
+        "sosafe-planning"
+      ],
+      "gates": [
+        "batch-confirm-before-push"
+      ]
     },
     {
       "name": "harness-checkin",
       "purpose": "Two-hourly wrap-up and prep: ingest past meetings, prep upcoming, roll up action items.",
-      "entry": ["/checkin"],
+      "entry": [
+        "/checkin"
+      ],
       "tier": "sonnet",
       "effort": "high",
-      "triggers": ["wrap up today", "what happened today", "prepare for tomorrow", "collect my action items", "prep my meetings", "align my docs", "cron"],
-      "reads": ["profile", "calendar", "drive", "gmail", "jira", "confluence", "vault", "urgency-matrix"],
-      "writes": ["vault/digests", "vault/meetings"],
-      "delegates_to": ["harness-meetings"],
-      "gates": ["batch-confirm-before-push", "autonomous-never-writes-remote"],
+      "triggers": [
+        "wrap up today",
+        "what happened today",
+        "prepare for tomorrow",
+        "collect my action items",
+        "prep my meetings",
+        "align my docs",
+        "cron"
+      ],
+      "reads": [
+        "profile",
+        "calendar",
+        "drive",
+        "gmail",
+        "jira",
+        "confluence",
+        "vault",
+        "urgency-matrix"
+      ],
+      "writes": [
+        "vault/digests",
+        "vault/meetings"
+      ],
+      "delegates_to": [
+        "harness-meetings"
+      ],
+      "gates": [
+        "batch-confirm-before-push",
+        "autonomous-never-writes-remote"
+      ],
       "subagents": [
-        { "name": "meeting-ingest", "tier": "sonnet", "returns": "json", "purpose": "One per past meeting: locate the transcript, summarize, extract action items" },
-        { "name": "prep-assess", "tier": "sonnet", "returns": "json", "purpose": "One per upcoming meeting: gather signals, score prep time, split action vs review" }
+        {
+          "name": "meeting-ingest",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "One per past meeting: locate the transcript, summarize, extract action items"
+        },
+        {
+          "name": "prep-assess",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "One per upcoming meeting: gather signals, score prep time, split action vs review"
+        }
       ]
     },
     {
       "name": "harness-groom",
       "purpose": "Backlog grooming: sweep, readiness-check, size, split. Orchestrates, never reimplements.",
-      "entry": ["/groom"],
+      "entry": [
+        "/groom"
+      ],
       "tier": "opus",
       "effort": "high",
-      "triggers": ["groom my backlog", "get my tickets ready", "refine the backlog", "sprint prep", "is this ticket ready", "split this ticket"],
-      "reads": ["profile", "jira", "urgency-matrix"],
-      "writes": ["vault/digests"],
-      "delegates_to": ["harness-pm", "sosafe-ticket-loop", "sosafe-planning"],
-      "gates": ["batch-confirm-jira-writes", "autonomous-never-writes-remote"],
+      "triggers": [
+        "groom my backlog",
+        "get my tickets ready",
+        "refine the backlog",
+        "sprint prep",
+        "is this ticket ready",
+        "split this ticket"
+      ],
+      "reads": [
+        "profile",
+        "jira",
+        "urgency-matrix"
+      ],
+      "writes": [
+        "vault/digests"
+      ],
+      "delegates_to": [
+        "harness-pm",
+        "sosafe-ticket-loop",
+        "sosafe-planning",
+        "harness-ship"
+      ],
+      "gates": [
+        "batch-confirm-jira-writes",
+        "autonomous-never-writes-remote"
+      ],
       "subagents": [
-        { "name": "ticket-readiness", "tier": "sonnet", "returns": "json", "purpose": "One per candidate ticket: run the quality check and size it" }
+        {
+          "name": "ticket-readiness",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "One per candidate ticket: run the quality check and size it"
+        }
       ],
       "$note": "Per-ticket checks fan out at sonnet; the keep/split/reject call stays opus."
     },
     {
       "name": "harness-review",
       "purpose": "Single review entry point. Classify the diff, dispatch to the specialist reviewers, merge verdicts.",
-      "entry": ["/review"],
+      "entry": [
+        "/review"
+      ],
       "tier": "opus",
       "effort": "high",
-      "triggers": ["review this", "review my changes", "review this PR", "is this ready to merge", "check this branch"],
-      "reads": ["git-diff", "github", "profile", "knowledge", "anti-patterns"],
+      "triggers": [
+        "review this",
+        "review my changes",
+        "review this PR",
+        "is this ready to merge",
+        "check this branch"
+      ],
+      "reads": [
+        "git-diff",
+        "github",
+        "profile",
+        "knowledge",
+        "anti-patterns"
+      ],
       "writes": [],
-      "delegates_to": ["sosafe-security", "sosafe-architecture", "code-review", "simplify"],
-      "gates": ["never-push-or-merge"],
+      "delegates_to": [
+        "sosafe-security",
+        "sosafe-architecture",
+        "code-review",
+        "simplify"
+      ],
+      "gates": [
+        "never-push-or-merge"
+      ],
       "subagents": [
-        { "name": "review-lens", "tier": "opus", "returns": "json", "purpose": "One per applicable lens (security, boundaries, defects, quality); returns findings with verdicts" }
+        {
+          "name": "review-lens",
+          "tier": "opus",
+          "returns": "json",
+          "purpose": "One per applicable lens (security, boundaries, defects, quality); returns findings with verdicts"
+        }
       ]
+    },
+    {
+      "name": "harness-ship",
+      "purpose": "Ticket → AC contract → worktree → implement-task → deterministic+Semgrep+browser gates → fresh contract review → DRAFT PR + Jira In Review. Orchestrates only; never writes code.",
+      "entry": [
+        "/ship"
+      ],
+      "tier": "opus",
+      "effort": "high",
+      "triggers": [
+        "ship this ticket",
+        "implement LTC-",
+        "take this ticket to a draft PR",
+        "build it and open a PR",
+        "autonomous implement",
+        "ship it"
+      ],
+      "reads": [
+        "profile",
+        "jira",
+        "lt-registry",
+        "workspace",
+        "git-diff",
+        "knowledge",
+        "anti-patterns"
+      ],
+      "writes": [
+        "worktree",
+        "features/<KEY>",
+        "vault/digests"
+      ],
+      "delegates_to": [
+        "sosafe-ai-harness-task-to-pr",
+        "sosafe-pr-workflow",
+        "sosafe-security",
+        "sosafe-ticket-loop"
+      ],
+      "gates": [
+        "contract-approved-before-code",
+        "verify-gate-before-pr",
+        "draft-pr-only",
+        "never-merge-or-ready",
+        "autonomous-never-writes-remote"
+      ],
+      "subagents": [
+        {
+          "name": "ac-contract",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "Ticket AC → numbered EARS checklist, one verification method per item"
+        },
+        {
+          "name": "browser-smoke",
+          "tier": "sonnet",
+          "returns": "json",
+          "purpose": "Chrome DevTools only; one verdict per browser-verifiable contract item"
+        },
+        {
+          "name": "contract-reviewer",
+          "tier": "opus",
+          "returns": "json",
+          "purpose": "Fresh context, diff + contract + verify report only; gaps not style"
+        }
+      ],
+      "$note": "Developer tier is the plugin's (sonnet); the reviewer is opus on purpose. Verification is scripts first, LLM last."
     },
     {
       "name": "harness-growth",
       "purpose": "Visibility audit, IDP check, talk prep, growth-focused 1:1 prep, stale-work radar.",
-      "entry": ["/growth"],
+      "entry": [
+        "/growth"
+      ],
       "tier": "opus",
       "effort": "medium",
-      "triggers": ["how's my career going", "1:1 growth prep", "what should I present", "visibility gap", "IDP check", "level up", "how do I get a raise", "turn work into a talk", "slide deck"],
-      "reads": ["profile", "github", "jira", "confluence", "vault", "calendar"],
-      "writes": ["vault/growth"],
-      "delegates_to": ["gws-slides"],
-      "gates": ["never-write-idp-source", "batch-confirm-before-publish"],
+      "triggers": [
+        "how's my career going",
+        "1:1 growth prep",
+        "what should I present",
+        "visibility gap",
+        "IDP check",
+        "level up",
+        "how do I get a raise",
+        "turn work into a talk",
+        "slide deck"
+      ],
+      "reads": [
+        "profile",
+        "github",
+        "jira",
+        "confluence",
+        "vault",
+        "calendar"
+      ],
+      "writes": [
+        "vault/growth"
+      ],
+      "delegates_to": [
+        "gws-slides"
+      ],
+      "gates": [
+        "never-write-idp-source",
+        "batch-confirm-before-publish"
+      ],
       "$note": "Opus because the honesty rule is the whole value: a cheaper tier flatters the self-assessment."
     },
     {
       "name": "harness-self-improve",
       "purpose": "Red/green TDD over the harness itself. Diagnose against eval scorecards, propose drafts.",
-      "entry": ["/self-improve"],
+      "entry": [
+        "/self-improve"
+      ],
       "tier": "opus",
       "effort": "high",
-      "triggers": ["self-improve", "how could the harness work better", "reflect and improve"],
-      "reads": ["eval-scorecards", "runs.jsonl", "memory", "knowledge", "anti-patterns", "registry", "git-log"],
-      "writes": ["knowledge", "anti-patterns"],
+      "triggers": [
+        "self-improve",
+        "how could the harness work better",
+        "reflect and improve"
+      ],
+      "reads": [
+        "eval-scorecards",
+        "runs.jsonl",
+        "memory",
+        "knowledge",
+        "anti-patterns",
+        "registry",
+        "git-log"
+      ],
+      "writes": [
+        "knowledge",
+        "anti-patterns"
+      ],
       "delegates_to": [],
-      "gates": ["draft-only", "never-commit-or-push"]
+      "gates": [
+        "draft-only",
+        "never-commit-or-push"
+      ]
     },
     {
       "name": "harness-find-skill",
@@ -191,8 +526,15 @@
       "entry": [],
       "tier": "haiku",
       "effort": "low",
-      "triggers": ["which skill handles", "what harness command does", "is there a skill for"],
-      "reads": ["registry", "installed-skills"],
+      "triggers": [
+        "which skill handles",
+        "what harness command does",
+        "is there a skill for"
+      ],
+      "reads": [
+        "registry",
+        "installed-skills"
+      ],
       "writes": [],
       "delegates_to": [],
       "gates": [],
@@ -204,35 +546,58 @@
       "entry": [],
       "tier": "sonnet",
       "effort": "medium",
-      "triggers": ["add analytics to a module", "instrument module events", "analytics hook", "analytics ticket"],
-      "reads": ["workspace", "github"],
+      "triggers": [
+        "add analytics to a module",
+        "instrument module events",
+        "analytics hook",
+        "analytics ticket"
+      ],
+      "reads": [
+        "workspace",
+        "github"
+      ],
       "writes": [],
       "delegates_to": [],
       "gates": []
     }
   ],
-
   "composites": [
     {
       "name": "standup",
-      "entry": ["/standup"],
+      "entry": [
+        "/standup"
+      ],
       "purpose": "Role-ordered daily driver. Scatter the scans, gather into one digest.",
       "tier": "sonnet",
-      "scatter": ["pm-scan", "support-scan", "harness-meetings:prep", "harness-monitoring"],
+      "scatter": [
+        "pm-scan",
+        "support-scan",
+        "harness-meetings:prep",
+        "harness-monitoring"
+      ],
       "gather": "Merge, classify by urgency-matrix, render per role-playbooks.standup_order",
-      "writes": ["vault/digests"]
+      "writes": [
+        "vault/digests"
+      ]
     },
     {
       "name": "dashboard",
-      "entry": ["harness dashboard"],
+      "entry": [
+        "harness dashboard"
+      ],
       "purpose": "CLI dev status at a glance; caches a structured snapshot for --cached re-render.",
       "tier": "sonnet",
-      "scatter": ["pm-scan", "support-scan", "harness-meetings:prep"],
+      "scatter": [
+        "pm-scan",
+        "support-scan",
+        "harness-meetings:prep"
+      ],
       "gather": "Classify by urgency-matrix, render role-ordered, cache the JSON",
-      "writes": ["cache/dashboard.json"]
+      "writes": [
+        "cache/dashboard.json"
+      ]
     }
   ],
-
   "reuse": {
     "$comment": "Marketplace capabilities the harness must NOT reimplement. Route by intent, not by tool call.",
     "metrics": "compass-analyst (sosafe-engineering-metrics)",
@@ -241,13 +606,16 @@
     "ticket-quality-size-split": "sosafe-ticket-loop",
     "security-review": "sosafe-security",
     "architecture-review": "sosafe-architecture",
-    "autonomous-code-to-pr": "sosafe-ai-harness-task-to-pr:implement-task",
+    "autonomous-code-to-pr": "sosafe-ai-harness-task-to-pr:implement-task (wrapped by /ship — never call it bare for ticket work)",
     "repo-claude-md": "sosafe-ai-harness-claude-md:generate-claude-md",
     "notes-capture": "/notes (global, Obsidian vault)"
   },
-
   "not_routable": {
     "$comment": "Internal sub-agents of sosafe-ai-harness-task-to-pr. Never invoke by name.",
-    "names": ["harness-developer", "harness-reviewer", "harness-tester"]
+    "names": [
+      "harness-developer",
+      "harness-reviewer",
+      "harness-tester"
+    ]
   }
 }

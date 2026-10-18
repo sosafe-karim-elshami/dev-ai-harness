@@ -9,7 +9,7 @@ Invoke **harness-groom**. It reuses the marketplace (does not reimplement groomi
 2. **Readiness** — `sosafe-ticket-loop:check-ticket-quality` per candidate →
    verdict `feasible | too-big | blocked` + a suggested comment.
 3. **Size** — `sosafe-ticket-loop:estimate-ticket-size` → per-criterion t-shirt sizes.
-4. **Route** — `feasible` → keep; `too-big` → offer `sosafe-ticket-loop:decompose-ticket`
+4. **Route** — `feasible` → keep (small, single-repo tickets get `next: /ship KEY`); `too-big` → offer `sosafe-ticket-loop:decompose-ticket`
    (delegates creation to `sosafe-planning:sosafe-jira-planning`); `blocked` → collect
    the missing info + suggested comment.
 5. **Prioritize + save** — order by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`; write a groom

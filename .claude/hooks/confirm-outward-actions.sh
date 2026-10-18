@@ -46,8 +46,8 @@ case "$TOOL" in
     if echo "$COMMAND" | grep -qE '(^|[[:space:]&;|])git[[:space:]]+push([[:space:]]|$)'; then
       ask "Outward action: \`git push\` will publish commits to the remote. Confirm before pushing."
     fi
-    if echo "$COMMAND" | grep -qE '(^|[[:space:]&;|])gh[[:space:]]+pr[[:space:]]+(create|merge)([[:space:]]|$)'; then
-      ask "Outward action: \`gh pr $(echo "$COMMAND" | grep -oE 'pr[[:space:]]+(create|merge)' | awk '{print $2}')\` affects GitHub. Confirm first."
+    if echo "$COMMAND" | grep -qE '(^|[[:space:]&;|])gh[[:space:]]+pr[[:space:]]+(create|merge|ready)([[:space:]]|$)'; then
+      ask "Outward action: \`gh pr $(echo "$COMMAND" | grep -oE 'pr[[:space:]]+(create|merge|ready)' | awk '{print $2}')\` affects GitHub. Confirm first."
     fi
     if echo "$COMMAND" | grep -qE '(^|[[:space:]&;|])gh[[:space:]]+issue[[:space:]]+create([[:space:]]|$)'; then
       ask "Outward action: \`gh issue create\` will open a GitHub issue. Confirm first."

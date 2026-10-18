@@ -12,10 +12,11 @@
 // reported as "session-only" rather than guessed at — that distinction is the
 // whole point of the command.
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { execFileSync } from "node:child_process";
-import { getHarnessRepo, memoryDir } from "./paths.js";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { homedir } from "node:os";
+import { getHarnessRepo, memoryDir, readConfig, profilePath } from "./paths.js";
 import { scheduleReport } from "./launchd.js";
 import { loadMemory, memoryOverBudget } from "./memory.js";
 import { banner, c, ok, warn, info, fail } from "./ui.js";
@@ -78,8 +79,98 @@ function evaluate(cap: Capability): { status: Status; headless: string | null; s
   return { status, headless, session };
 }
 
+type Probe = { name: string; status: "ok" | "missing" | "session-only"; detail?: string; critical: boolean };
+
+function has(cmd: string, args: string[] = ["--version"]): boolean {
+  return spawnSync(cmd, args, { stdio: "ignore" }).status === 0;
+}
+
+/** Where task-to-pr's verify script lives (plugin cache first, marketplace clone second). */
+export function verifyScriptPath(): string | null {
+  const cache = join(homedir(), ".claude", "plugins", "cache", "sosafe-claude-market", "sosafe-ai-harness");
+  if (existsSync(cache)) {
+    for (const v of readdirSync(cache)) {
+      const p = join(cache, v, "task-to-pr", "scripts", "harness-verify.mjs");
+      if (existsSync(p)) return p;
+    }
+  }
+  const mkt = join(homedir(), ".claude", "plugins", "marketplaces", "sosafe-claude-market", "plugins", "sosafe-ai-harness", "task-to-pr", "scripts", "harness-verify.mjs");
+  return existsSync(mkt) ? mkt : null;
+}
+
+/** `harness doctor --ship [repo]`: can /ship actually run its gates here? */
+function shipDoctor(harnessRepo: string, repoArg?: string): number {
+  const probes: Probe[] = [];
+  const push = (name: string, okay: boolean, critical: boolean, detail?: string, sessionOnly = false): void => {
+    probes.push({ name, status: okay ? "ok" : sessionOnly ? "session-only" : "missing", detail, critical });
+  };
+
+  // Harness-side invariants.
+  const settings = JSON.parse(readFileSync(join(harnessRepo, ".claude", "settings.json"), "utf8"));
+  const hooksJson = JSON.parse(readFileSync(join(harnessRepo, ".claude", "hooks", "hooks.json"), "utf8"));
+  push("plugin hooks.json has PostToolUse logger", Boolean(hooksJson.hooks?.PostToolUse), true);
+  push("deny-destructive hook registered", JSON.stringify(settings.hooks?.PreToolUse ?? []).includes("deny-destructive"), true);
+  push("settings deny rules (merge/push main/reset --hard)", (settings.permissions?.deny ?? []).some((d: string) => d.includes("gh pr merge")), true);
+  for (const a of ["ac-contract", "browser-smoke", "contract-reviewer"]) push(`agent ${a}`, existsSync(join(harnessRepo, ".claude", "agents", `${a}.md`)), true);
+  const enabled = Object.keys(settings.enabledPlugins ?? {});
+  for (const p of ["sosafe-ai-harness", "sosafe-pr-workflow", "sosafe-security", "sosafe-ticket-loop"]) push(`plugin ${p} enabled`, enabled.some((e) => e.startsWith(`${p}@`)), true);
+  const env = settings.env ?? {};
+  for (const k of ["JIRA_URL", "JIRA_PROJECT_KEY", "GITHUB_DEFAULT_LABEL"]) push(`env ${k}`, Boolean(env[k]), false, env[k]);
+  const verify = verifyScriptPath();
+  push("harness-verify.mjs resolvable", Boolean(verify), true, verify ?? "install sosafe-ai-harness");
+
+  // Local tooling.
+  push("gh authenticated", spawnSync("gh", ["auth", "status"], { stdio: "ignore" }).status === 0, true);
+  push("semgrep CLI", has("semgrep"), false, has("semgrep") ? undefined : "brew install semgrep — Semgrep rows report as unverified without it");
+  push("node ≥ 20", Number(process.versions.node.split(".")[0]) >= 20, true, process.versions.node);
+  push("Chrome DevTools MCP", false, false, "mcp__chrome-devtools__* — verified in-session only", true);
+  push("Jira (Atlassian MCP)", false, true, "session-only; headless runs stop at orient", true);
+
+  // Target repos.
+  let repos: string[] = [];
+  if (repoArg) repos = [resolve(repoArg)];
+  else if (existsSync(profilePath())) {
+    const prof = JSON.parse(readFileSync(profilePath(), "utf8"));
+    repos = (prof.repos ?? []).filter((r: any) => r.role === "maintainer" && r.local_path).map((r: any) => r.local_path);
+  }
+  for (const repo of repos) {
+    const tag = repo.split("/").pop();
+    if (!existsSync(join(repo, "package.json"))) {
+      push(`${tag}: package.json`, false, true, repo);
+      continue;
+    }
+    const pkg = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
+    const scripts = pkg.scripts ?? {};
+    const have = (names: string[]): string | undefined => names.find((n) => scripts[n]);
+    push(`${tag}: lint`, Boolean(have(["harness:lint", "lint"])), true, have(["harness:lint", "lint"]));
+    push(`${tag}: test`, Boolean(have(["harness:test", "test:ci", "test"])), true, have(["harness:test", "test:ci", "test"]));
+    push(`${tag}: build`, Boolean(have(["harness:build", "build"])), true, have(["harness:build", "build"]));
+    push(`${tag}: typecheck`, Boolean(have(["harness:typecheck", "typecheck"])), false, have(["harness:typecheck", "typecheck"]) ?? "N/A — upstream ask: add \"typecheck\": \"tsc --noEmit\"");
+    push(`${tag}: install:secure`, Boolean(scripts["install:secure"]), false);
+    const gi = existsSync(join(repo, ".gitignore")) ? readFileSync(join(repo, ".gitignore"), "utf8") : "";
+    const ex = existsSync(join(repo, ".git", "info", "exclude")) ? readFileSync(join(repo, ".git", "info", "exclude"), "utf8") : "";
+    const ignored = /\.claude\/worktrees/.test(gi) || /\.claude\/worktrees/.test(ex);
+    push(`${tag}: .claude/worktrees/ ignored`, ignored, false, ignored ? undefined : "/ship adds it to .git/info/exclude on first run; upstream ask: .gitignore");
+  }
+  if (!repos.length) push("target repos", false, true, "no maintainer repos in profile.json and no --ship <repo> given");
+
+  banner();
+  info("Ship readiness:\n");
+  for (const p of probes) {
+    const mark = p.status === "ok" ? c.green("✓") : p.status === "session-only" ? c.yellow("?") : p.critical ? c.red("✗") : c.yellow("!");
+    console.log(`  ${mark} ${p.name}${p.detail ? c.dim(`  ${p.detail}`) : ""}`);
+  }
+  const blocking = probes.filter((p) => p.status === "missing" && p.critical);
+  console.log("");
+  if (blocking.length) warn(`${blocking.length} gate-critical probe(s) missing — /ship would stop early.`);
+  else ok("Every gate-critical probe passes; session-only ones need an interactive session.");
+  return blocking.length ? 1 : 0;
+}
+
 export function doctor(argv: string[]): number {
   const harnessRepo = getHarnessRepo();
+  const shipIdx = argv.indexOf("--ship");
+  if (shipIdx !== -1) return shipDoctor(harnessRepo, argv[shipIdx + 1] && !argv[shipIdx + 1].startsWith("--") ? argv[shipIdx + 1] : undefined);
   const file = join(harnessRepo, "definitions", "mcp-fallbacks.json");
   if (!existsSync(file)) {
     fail(`No fallback map at ${file}.`);
