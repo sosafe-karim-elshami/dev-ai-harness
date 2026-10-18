@@ -21,7 +21,7 @@ You are given ONE meeting (title, date, time, attendees). Find its notes, summar
 
 ## Output
 
-Your entire reply is one JSON object. No prose, no markdown fences.
+Line 1 is `MEETING_INGEST_COMPLETE` (or `MEETING_INGEST_BLOCKED` with `{"reason","needs":[]}`); line 2 onward is exactly one JSON object. No prose, no fences — `definitions/agent-output-contract.md`.
 
 ```json
 {
