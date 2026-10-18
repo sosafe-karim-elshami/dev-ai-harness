@@ -82,6 +82,51 @@ From the CLI (`cli/`): `harness dashboard` renders a role-ordered dev dashboard 
 
 Plain asks work too: "how's the team's sprint looking?", "anyone in #support-x waiting on a reply?", "prep my 2pm", "ingest my last meeting's Gemini notes and draft follow-ups".
 
+## Ticket → draft PR: `/ship`
+
+`/ship LTC-1234` takes one ticket to a **draft** pull request that a human promotes and merges. It orchestrates; the marketplace writes the code; scripts and a fresh reviewer decide whether it is done.
+
+1. **Orient** — reads the ticket, resolves the repo (LT registry → Jira labels → your profile), runs `sosafe-ticket-loop`'s quality check unless you came from `/groom`.
+2. **Contract** — the `ac-contract` agent turns every acceptance criterion into a numbered EARS row (`When <trigger>, the system shall …`) with a `verify_by` of `script`, `browser`, or `review`. You approve it once. `--dry-run` stops here.
+3. **Worktree** — `task/LTC-1234-<slug>` under `.claude/worktrees/`; first commit is the contract.
+4. **Implement** — hands the contract to `sosafe-ai-harness-task-to-pr:implement-task` (developer / reviewer / tester loop, its own verify script) and tells it to stop before opening a PR.
+5. **Verify gate** — re-runs lint, tests, build, typecheck through `harness-verify.mjs` (no model involved) and Semgrep on the diff → `features/LTC-1234/verify-report.{md,json}`.
+6. **Browser smoke** (frontend repos) — the `browser-smoke` agent proves the `browser` rows in a real Chrome via the DevTools MCP: one screenshot per row, console errors fail the row.
+7. **Contract review** — the `contract-reviewer` agent (opus, fresh context, sees only contract + diff + report) grades every row `met | gap | unverifiable` and hunts for weakened tests. Gaps get one fix pass.
+8. **Draft PR** — `sosafe-exp-squad-pr` opens it as a draft with the `ai-harness` label and a contract → evidence table, moves Jira to In Review. `--until verify` writes `features/<KEY>/pr.md` instead and pushes nothing.
+9. **Digest** — `$VAULT/digests/<date>-ship-LTC-1234.md` with the evidence table and the cost from `usage.md`.
+
+Before the first run: `harness doctor --ship ~/projects/<repo>` lists every prerequisite (plugins enabled, `gh` auth, Semgrep, the repo's `lint`/`test:ci`/`build`/`typecheck` scripts, worktree ignore). Headless: `harness ship LTC-1234 --repo ~/projects/<repo>` runs the same flow autonomously and ends at `pr.md` — it never pushes. Groom feeds it: `/groom` marks small single-repo tickets `next: /ship KEY`.
+
+Hard rules, enforced by hooks not prose: never `gh pr merge`, never `gh pr ready`, never push `main`; a `/ship` run cannot end on a bare "done" while its verify report is missing (`ship-stop-gate.sh`).
+
+## Vault retention: `harness compress`
+
+The vault gains a note per day per surface. Left alone it stops being scannable, so retention v2 (`definitions/retention.json`) compresses instead of just moving:
+
+```bash
+harness compress                       # dry run: prints the plan, writes nothing
+harness compress --apply               # roll up, distil, archive; writes digests/<date>-compress-plan.md
+harness compress --apply --knowledge   # also ask for knowledge consolidation proposals (sonnet, cached)
+harness links report | repair --apply  # wikilink health; repair re-points links to already-archived notes
+harness archive --apply                # rule-only subset: aged / expired / superseded moves, no model
+```
+
+- **Digests:** dailies older than 14 days roll up into `digests/weekly/<ISO week>.md` (haiku), weeklies older than 90 days into `digests/monthly/`. Open checkboxes are copied **verbatim** with their first-seen date; the model only returns summary, themes, decisions, and which item ids are duplicates — it cannot invent a task. Originals move to `digests/archive/`, listed in the rollup's `children:` with a `children_hash` so re-runs are no-ops.
+- **Meetings:** recurring stems (`ltc-daily`, `ltc-replenishment`, …) distil per month into `meetings/rollups/`; every decision is also appended to `knowledge/decision-log.md`.
+- **Knowledge:** stale (120 d), ticket-scoped (60 d), or near-duplicate notes become clusters; with `--knowledge` a sonnet call proposes `ADD | UPDATE | SUPERSEDE | NOOP` with verbatim evidence. `SUPERSEDE` adds `status: superseded` + `superseded_by:` and moves the note to `knowledge/archive/`; anything under 0.6 confidence is listed for a human.
+- **Frontmatter you can use:** `expires: YYYY-MM-DD` (archived when past, any folder), `status: superseded`, `pinned: true` (never touched).
+- **Links:** full-path `[[folder/name]]` links are rewritten across the whole vault before a move; `index.md`'s `## Recent` block regenerates between markers (hand-written summaries survive), knowledge entries are ordered by inbound links × recency, and the index overflows to `knowledge/index.md` past 120 lines.
+- **Nothing is ever deleted.** Every phase is logged to `~/.claude/sosafe-harness/compress.jsonl`; a failed summary leaves its originals live. A `SessionStart` nudge prints one line when notes are due.
+
+## Token model
+
+- **CLAUDE.md is 30 lines.** Routing lives in `definitions/registry.index.md` (generated by `harness registry sync`); the router reads the full `registry.json` entry only for the skill it picks. Company context and vault conventions are path-scoped `.claude/rules/*.md`.
+- **Tiers are real.** Every headless run passes `--model` from the registry tier (haiku mechanical, sonnet scan, opus judgment), `--max-turns`, and `--max-budget-usd`. Subagents start with `omitClaudeMd` and a `maxTurns` cap and reply **sentinel + one JSON object** (`definitions/agent-output-contract.md`), so the caller parses instead of re-reading.
+- **Caps that `harness registry check` enforces:** CLAUDE.md ≤ 60 lines, SKILL.md bodies ≤ 60, commands and agents ≤ 40, descriptions ≤ 1024 chars.
+- **Memory stays small:** injected memory is capped at 25 KB / 200 lines; CLI sessions rotate after 20 runs or 7 days.
+- **Measure it:** `harness eval` reports cost, duration, tool calls, and an 8-line verbosity check per golden task; `harness metrics` shows runs and dollars by tier.
+
 ## Knowledge vault (Obsidian)
 
 Each dev gets a **personal, cross-session knowledge base** as an Obsidian vault — the *setup* is shared (it ships in this repo), the *content* is private (never committed). `/setup` scaffolds it from `definitions/vault-templates/` and records its path in `~/.claude/sosafe-harness/config.json` → `vaultPath`.
@@ -99,29 +144,50 @@ Read-mostly by default. **Every outward or destructive action is gated** — Sla
 
 1. Each skill batches mutations and asks once, naming every target.
 2. A `PreToolUse` hook (`.claude/hooks/confirm-outward-actions.sh`) intercepts those tools and forces a confirmation prompt — independent of any skill's prose. Read-only and `*_draft` tools are never gated, so day-to-day use has no friction.
+3. **Always-on denials** (`.claude/hooks/deny-destructive.sh` + `permissions.deny`): `gh pr merge`, pushing to `main`/`master`/`develop`, force-push (lease is fine), `git reset --hard`, `git clean -f`, `git branch -D`, and `rm -rf` outside the project, its worktrees, or the temp dir. These are denied, never asked, in every mode — a boundary stated in chat can be lost to compaction; a hook cannot.
 
-Set `preferences.confirm_outward_actions: false` in your profile to relax the in-skill prompts; the hook still fires.
+Set `preferences.confirm_outward_actions: false` in your profile to relax the in-skill prompts; the hooks still fire. Headless runs (`harness …`, launchd) set `HARNESS_AUTONOMOUS=1`, which turns every "ask" into a deny: they draft, they never send.
 
 ## What's in here
 
 ```
 .claude/
-  settings.json          # enables marketplace plugins; read-mostly permissions; registers the guard hook
-  hooks/                 # confirm-outward-actions.sh — the safety gate
-  skills/                # onboarding, workspace, pm, support-triage, meetings, monitoring, self-improve, router
-  commands/              # setup, harness, standup, triage, meeting, monitoring, self-improve, notes
-definitions/             # profile.schema.json, role-playbooks.json, discovery-queries.json, vault-templates/
-knowledge/               # committed, shareable team memory (support FAQs, runbooks) — grows over time
-cli/                     # optional `harness` CLI wrapper (persistent sessions, memory, context graph) — see cli/README.md
+  settings.json          # marketplace plugins; read-mostly permissions; deny rules; hooks (deny → confirm → loggers → nudge)
+  hooks/                 # deny-destructive.sh, confirm-outward-actions.sh, ship-stop-gate.sh, log-skill-run.sh, log-subagent-stop.sh
+  skills/                # router, onboarding, workspace, pm, support-triage, meetings, monitoring, checkin, groom, review, ship, growth, self-improve, find-skill
+  agents/                # sentinel + JSON subagents: pm-scan, support-scan, meeting-ingest, prep-assess, ticket-readiness, review-lens, ac-contract, browser-smoke, contract-reviewer
+  commands/              # setup, harness, standup, triage, meeting, monitoring, checkin, groom, review, ship, growth, self-improve, notes
+  rules/                 # path-scoped context: strategy.md (company pillars), vault.md (vault conventions)
+definitions/
+  registry.json          # THE routing + tier source of truth; registry.index.md is generated from it
+  output-contract.md     # reply rules; agent-output-contract.md — sentinel + one JSON object
+  retention.json         # vault retention v2: rollup ladder, distills, TTLs, index budgets
+  compress/              # JSON schemas + prompts for the tool-less summarisation calls
+  eval/golden-tasks.jsonl
+knowledge/               # committed team memory; anti-patterns/ (negative results); self-improve-log.md
+cli/                     # the `harness` CLI: compress, links, ship, eval, metrics, doctor, registry, install-launchd — see cli/README.md
 workspace/               # gitignored; your maintained repos, cloned by harness-workspace
 CLAUDE.md                # 30-line session primer; routing lives in definitions/registry.index.md (generated)
 ```
 
 Your **profile** (`~/.claude/sosafe-harness/profile.json`) and **knowledge vault** (Obsidian) live outside the repo and are never committed — only the shared setup is.
 
-## Optional: scheduled runs
+## Scheduled runs (launchd)
 
-You can have `/standup` and a support sweep run on a schedule (e.g. each weekday morning) via Claude Code's scheduling, producing a read-only digest of drafts. It never auto-sends. See `.claude/commands/standup.md` for the opt-in recipe. Off by default.
+```bash
+harness install-launchd            # dry run: shows the four jobs and their plists
+harness install-launchd --apply    # writes ~/Library/LaunchAgents/de.sosafe.harness.*.plist, loads them, removes any old crontab block
+harness doctor                     # "Schedule" block: installed? ran on time? could it read the vault?
+```
+
+| Job | When | What |
+|---|---|---|
+| `compress` | Mon 07:50 | `harness compress --apply --max-budget-usd 3` — rollups, distills, archive moves |
+| `sync` | Mon–Fri 08:30 | pull harness + marketplaces, rebuild the CLI |
+| `eval` | Sun 09:00 | replay the golden tasks → fresh scorecard for self-improve |
+| `self-improve` | Fri 16:00 | read-only reflection, capped at $2 |
+
+Why launchd and not cron: on macOS cron has no Full Disk Access to `~/Documents` (where the vault lives) and skips runs the laptop slept through; launchd fires missed jobs on wake. **One-time step:** grant Full Disk Access to the `node` binary the plist names (System Settings › Privacy & Security); `harness doctor` tells you when a job could not read the vault. Logs land in `~/.claude/sosafe-harness/logs/`. Every job is draft-only.
 
 ## Intellectual foundations
 
@@ -248,12 +314,14 @@ Being honest about where the science is fully realised and where it isn't:
 | Guides + Sensors (Fowler) | ✅ Full | `CLAUDE.md` + role-playbooks as guides; PostToolUse hook + `runs.jsonl` as sensors |
 | Maintainability regulation (Fowler) | ✅ Full | `harness-self-improve` proposes; `harness eval` scores before accepting |
 | Architecture fitness (Fowler) | ✅ Full | Compass hygiene in every `/monitoring` run |
-| Behaviour regulation (Fowler) | ⚠️ Partial | `golden-tasks.jsonl` tests routing only — functional correctness tests not yet written. Fowler calls this the hardest and least-mature dimension. |
+| Behaviour regulation (Fowler) | ⚠️ Partial | 38 golden tasks score routing, read-only compliance, citations, grounding, forbidden actions, tool order, and reply length; the vault engine has a unit suite (`cd cli && npm test`). An end-to-end `/ship` on a real ticket is still a manual check. |
+| Ticket → verified draft PR | ✅ Full | `/ship`: contract → implement-task → script + Semgrep + browser gates → fresh-context review → draft PR; merge and promotion stay human |
+| Vault compression | ✅ Full | `harness compress`: rollup ladder, meeting distills, knowledge proposals, link rewriting, audit log; nothing deleted |
 | Ambient Affordances (Fowler) | ✅ Full | Profile + vault + `knowledge/` eliminate re-derivation at session start |
 | Keep Quality Left (Fowler) | ✅ Full | `PreToolUse` hook fires before any outward action reaches the network |
 | Four harness properties (Weng) | ✅ Full | Workflow, evaluation, permissions, persistent state all present |
 | Seven bottlenecks (Weng) | ✅ Full | All seven are addressed — see table above |
-| CODE workflow (Forte) | ⚠️ Partial | Capture/Organise/Distil are automated; Express is surfaced as a gap by `/growth` but the actual output (Confluence page, talk) is always manual — outward actions are gated by design |
+| CODE workflow (Forte) | ⚠️ Partial | Capture/Organise/Distil are automated (Distil now by `harness compress`); Express is surfaced as a gap by `/growth` but the actual output (Confluence page, talk) is always manual — outward actions are gated by design |
 | PARA structure (Forte) | ✅ Full | All four buckets are mapped to vault folders |
 | Zettelkasten linking (Luhmann) | ✅ Full | `[[wikilinks]]` + backlinks; structure emerges from link graph |
 | Two-brain separation | ✅ Full | Hard boundary: personal vault never committed; `knowledge/` always shared |

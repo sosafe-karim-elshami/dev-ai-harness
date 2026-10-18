@@ -19,7 +19,7 @@ You are given ONE upcoming meeting and the current time. Decide what the user mu
 
 ## Output
 
-Your entire reply is one JSON object. No prose, no markdown fences.
+Line 1 is `PREP_ASSESS_COMPLETE` (or `PREP_ASSESS_BLOCKED` with `{"reason","needs":[]}`); line 2 onward is exactly one JSON object. No prose, no fences — `definitions/agent-output-contract.md`.
 
 ```json
 {

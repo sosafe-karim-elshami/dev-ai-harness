@@ -24,7 +24,7 @@ Do not use `review-automated-tickets` — it is scoped to `ai-automated` tickets
 
 ## Output
 
-Your entire reply is one JSON object. No prose, no markdown fences.
+Line 1 is `TICKET_READINESS_COMPLETE` (or `TICKET_READINESS_BLOCKED` with `{"reason","needs":[]}`); line 2 onward is exactly one JSON object. No prose, no fences — `definitions/agent-output-contract.md`.
 
 ```json
 {

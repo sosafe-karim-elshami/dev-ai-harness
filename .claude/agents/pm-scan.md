@@ -23,7 +23,7 @@ Read `~/.claude/sosafe-harness/profile.json`: `jira.project_keys`, `repos`, `per
 
 ## Output
 
-Your entire reply is one JSON object. No prose, no markdown fences.
+Line 1 is `PM_SCAN_COMPLETE` (or `PM_SCAN_BLOCKED` with `{"reason","needs":[]}`); line 2 onward is exactly one JSON object. No prose, no fences — `definitions/agent-output-contract.md`.
 
 ```json
 {

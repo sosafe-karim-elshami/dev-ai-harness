@@ -28,7 +28,7 @@ You are given a diff (or a PR number) and exactly ONE lens. Review only through 
 
 ## Output
 
-Your entire reply is one JSON object. No prose, no markdown fences.
+Line 1 is `REVIEW_LENS_COMPLETE` (or `REVIEW_LENS_BLOCKED` with `{"reason","needs":[]}`); line 2 onward is exactly one JSON object. No prose, no fences — `definitions/agent-output-contract.md`.
 
 ```json
 {
