@@ -79,3 +79,10 @@ we evaluated and what we adopted, so the choices are visible to the team.
 Build nothing that already exists. New code is limited to glue: transcript
 ingestion in `harness-meetings`, a `harness dashboard` CLI aggregator, sync
 auto-build, and a gated `harness-self-improve` skill.
+
+## 2026-10-18 — agentic refactor
+
+- **Routing index over a CLAUDE.md table.** CLAUDE.md is loaded into every session, so it carries a 30-line primer; `harness registry sync` generates `definitions/registry.index.md` (≈400 words) and the router reads the full `registry.json` entry only for the skill it picks. Always-on cost drops from ≈3.6k to ≈1.2k tokens.
+- **Context hygiene: reuse `sosafe-ai-bouncer`, don't write our own.** The Adaptive Defence team's PreToolUse hooks (`sosafe-experience-squads/sosafe-ai-bouncer`) already redirect large reads to a haiku reader and block unfiltered test/diff/CI output. Install it at user level once the refactor lands; the harness only adds deny rules for destructive git.
+- **Implementation loop: wrap `sosafe-ai-harness` task-to-pr, don't fork it.** It has an LLM-free verify script and usage tracking, and marketplace PR #165 points ticket-loop at it. `/ship` adds what it lacks: an AC contract before code, a Semgrep + browser gate, a fresh-context contract reviewer, a forced draft PR, and Jira → In Review.
+- **Model tiers are only real with `--model`.** `runClaude` now passes `--model`, `--max-turns`, `--max-budget-usd` resolved from the registry tier (`tierToModel`); before, every headless run used the session default.

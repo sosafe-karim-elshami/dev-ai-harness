@@ -4,6 +4,8 @@ description: Locate one finished meeting's transcript, summarize it, and extract
 model: sonnet
 tools: Read, Write, Grep, Glob, Bash, mcp__claude_ai_Google_Calendar__get_event, mcp__claude_ai_Google_Drive__search_files, mcp__claude_ai_Google_Drive__read_file_content, mcp__claude_ai_Google_Drive__get_file_metadata, mcp__claude_ai_Gmail__search_threads, mcp__claude_ai_Gmail__get_thread
 disallowedTools: AskUserQuestion
+maxTurns: 15
+omitClaudeMd: true
 ---
 
 You are given ONE meeting (title, date, time, attendees). Find its notes, summarize, extract commitments.

@@ -50,6 +50,13 @@ metrics`); `~/.claude/sosafe-harness/memory/*.md`; `${CLAUDE_PLUGIN_ROOT}/knowle
    task it targets, the expected scorecard movement.
 5. **New golden tasks follow the same discipline** — write it, run `harness eval` to watch it
    fail, then change the implementation to pass. A task you never saw fail can't be trusted.
+6. **Assumptions expire.** After a model or Claude Code bump (`git log` on `cli/`, `claude
+   --version`), propose re-running eval with one hook or rule disabled at a time; a component
+   whose removal moves nothing is scaffolding for a weakness the model no longer has. Propose
+   the cut; never apply it.
+7. **Log the pass.** Append to `${CLAUDE_PLUGIN_ROOT}/knowledge/self-improve-log.md` under
+   today's date: Applied (what landed since last time, with scorecard delta) and Outstanding
+   (proposals still open). Process only what changed since the previous entry.
 
 ## Output
 

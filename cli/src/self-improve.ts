@@ -16,6 +16,7 @@ export async function selfImprove(rest: string[]): Promise<number> {
   const prompt = extra ? `/self-improve ${extra}` : "/self-improve";
 
   banner();
-  await executeContext({ context: "self-improve", prompt, digest });
+  // Opus-tier reflection with a hard dollar cap: a runaway Friday job is not a feature.
+  await executeContext({ context: "self-improve", prompt, digest, maxBudgetUsd: 2, maxTurns: 60 });
   return 0;
 }

@@ -4,6 +4,8 @@ description: Assess one backlog ticket for refinement readiness — quality verd
 model: sonnet
 tools: Read, Grep, Glob, Bash, Skill, mcp__claude_ai_Atlassian__getJiraIssue, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
 disallowedTools: Write, Edit, AskUserQuestion
+maxTurns: 15
+omitClaudeMd: true
 ---
 
 You are given ONE Jira ticket key. Judge whether it could be picked up tomorrow.

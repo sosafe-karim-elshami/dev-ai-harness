@@ -112,7 +112,7 @@ definitions/             # profile.schema.json, role-playbooks.json, discovery-q
 knowledge/               # committed, shareable team memory (support FAQs, runbooks) — grows over time
 cli/                     # optional `harness` CLI wrapper (persistent sessions, memory, context graph) — see cli/README.md
 workspace/               # gitignored; your maintained repos, cloned by harness-workspace
-CLAUDE.md                # the routing brain, loaded every session
+CLAUDE.md                # 30-line session primer; routing lives in definitions/registry.index.md (generated)
 ```
 
 Your **profile** (`~/.claude/sosafe-harness/profile.json`) and **knowledge vault** (Obsidian) live outside the repo and are never committed — only the shared setup is.

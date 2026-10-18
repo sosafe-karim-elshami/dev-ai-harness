@@ -17,14 +17,14 @@ exactly this question. Only scan the filesystem when the registry has no match.
 
 ## Inputs
 
-- `${CLAUDE_PLUGIN_ROOT}/definitions/registry.json` — every harness skill and composite,
-  with triggers, tier, and purpose. Also `reuse` (marketplace capabilities by intent) and
-  `not_routable` (names that must never be suggested).
+- `${CLAUDE_PLUGIN_ROOT}/definitions/registry.index.md` — every harness skill and composite
+  with triggers and tier, plus Reuse (marketplace capabilities by intent) and Never-routable
+  (names that must never be suggested). `registry.json` holds the purpose text if needed.
 
 ## Steps
 
-1. Match the task against `registry.json` → `skills[].triggers`, `skills[].purpose`,
-   `composites[]`, and `reuse`. Almost every ask resolves here.
+1. Match the task against the index's triggers, composites, and Reuse lines. Almost every
+   ask resolves here.
 2. Registry hit → return it. Done. Do not scan the filesystem to "confirm".
 3. No hit → the ask is outside the harness. Scan installed skills for a match:
    ```bash

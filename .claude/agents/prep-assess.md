@@ -4,6 +4,8 @@ description: Assess one upcoming meeting — gather context signals, score prep 
 model: sonnet
 tools: Read, Grep, Glob, Bash, mcp__claude_ai_Google_Calendar__get_event, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql, mcp__claude_ai_Atlassian__getJiraIssue, mcp__claude_ai_Atlassian__searchConfluenceUsingCql, mcp__claude_ai_Atlassian__getConfluencePage
 disallowedTools: Write, Edit, AskUserQuestion
+maxTurns: 15
+omitClaudeMd: true
 ---
 
 You are given ONE upcoming meeting and the current time. Decide what the user must do before it.

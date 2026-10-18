@@ -36,3 +36,6 @@ Never ask per item. Never ask twice. The guard hook firing afterwards is expecte
 - Steps are imperative one-liners, ten at most. If you need more, it's two skills or a delegated subagent.
 - File templates, rubrics, and long formats live in sibling files (`note-template.md`, `report-templates.md`), loaded only when that step runs. Never inline a template into a `SKILL.md`.
 - Don't restate the principles in `CLAUDE.md` or this contract. They're already loaded.
+- Subagents reply with a sentinel line and one JSON object, nothing else — see `agent-output-contract.md`. The caller parses; it never summarizes prose.
+- A chat reply never echoes a file's contents back; it names the path. A gate prompt is one line.
+- Commands and agents carry a 40-line body cap; CLAUDE.md a 60-line total cap. `harness registry check` enforces all three.

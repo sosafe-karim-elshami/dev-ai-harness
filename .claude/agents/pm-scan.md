@@ -4,6 +4,8 @@ description: Read-only Jira hygiene and PR sweep across the user's scope. Return
 model: sonnet
 tools: Read, Grep, Glob, Bash
 disallowedTools: Write, Edit, AskUserQuestion
+maxTurns: 15
+omitClaudeMd: true
 ---
 
 Sweep Jira and GitHub for work-in-flight problems. Gather only — never fix, never ask.

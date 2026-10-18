@@ -123,13 +123,26 @@ function cmdInit(rest: string[]): number {
   return 0;
 }
 
-function splitFlags(rest: string[]): { digest: boolean; words: string[] } {
+function splitFlags(rest: string[]): { digest: boolean; words: string[]; maxBudgetUsd?: number; maxTurns?: number } {
   const digest = rest.includes("--digest");
-  return { digest, words: rest.filter((a) => a !== "--digest") };
+  const words: string[] = [];
+  let maxBudgetUsd: number | undefined;
+  let maxTurns: number | undefined;
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === "--digest") continue;
+    if (a === "--max-budget-usd") { maxBudgetUsd = Number(rest[++i]); continue; }
+    if (a.startsWith("--max-budget-usd=")) { maxBudgetUsd = Number(a.split("=")[1]); continue; }
+    if (a === "--max-turns") { maxTurns = Number(rest[++i]); continue; }
+    if (a.startsWith("--max-turns=")) { maxTurns = Number(a.split("=")[1]); continue; }
+    words.push(a);
+  }
+  return { digest, words, maxBudgetUsd, maxTurns };
 }
 
 async function cmdRun(rest: string[]): Promise<number> {
-  const { digest, words } = splitFlags(rest);
+  const flags = splitFlags(rest);
+  const { digest, words } = flags;
   const prompt = words.join(" ").trim();
   if (!prompt) {
     fail('Nothing to ask. Usage: harness run "<your message>"');
@@ -137,16 +150,17 @@ async function cmdRun(rest: string[]): Promise<number> {
   }
   const cfg = readConfig();
   const context = cfg?.defaultContext ?? "chat";
-  await executeContext({ context, prompt, digest });
+  await executeContext({ context, prompt, digest, maxBudgetUsd: flags.maxBudgetUsd, maxTurns: flags.maxTurns });
   return 0;
 }
 
 async function cmdSugar(cmd: string, rest: string[]): Promise<number> {
   // Each sugar command is its own context, so e.g. standup keeps its own thread.
-  const { digest, words } = splitFlags(rest);
+  const { digest, words, maxBudgetUsd, maxTurns } = splitFlags(rest);
   const extra = words.join(" ").trim();
   const prompt = extra ? `${SLASH[cmd]} ${extra}` : SLASH[cmd];
-  await executeContext({ context: cmd, prompt, digest });
+  // Scheduled (digest) runs always carry a dollar cap; interactive ones only if asked.
+  await executeContext({ context: cmd, prompt, digest, maxBudgetUsd: maxBudgetUsd ?? (digest ? 3 : undefined), maxTurns });
   return 0;
 }
 

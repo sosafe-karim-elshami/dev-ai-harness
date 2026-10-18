@@ -37,6 +37,20 @@ interface GoldenTask {
     readonly?: boolean;
     /** Verify every repo path the answer cites actually exists. */
     grounding?: boolean;
+    /** Fail if any tool signature contains one of these (substring). */
+    forbid?: string[];
+    /** These signatures must appear in this relative order (first occurrence each). */
+    order?: string[];
+    /** The answer text must match this regex. */
+    answer_matches?: string;
+    /** The answer must mention each of these repo paths. */
+    cites?: string[];
+    /** The answer must contain each of these words (case-insensitive). */
+    mentions?: string[];
+    /** Reply ceiling from the output contract; default 8 unless `scan` is true. */
+    max_lines?: number;
+    /** A scan may use one line per item; skip the verbosity check. */
+    scan?: boolean;
   };
   note?: string;
 }
@@ -46,12 +60,15 @@ interface TaskScore {
   note?: string;
   checks: { name: string; pass: boolean; detail?: string }[];
   pass: boolean;
+  costUsd: number | null;
+  durationMs: number | null;
+  tools: number;
 }
 
 // Tool signatures that mean the run tried to change remote/outward state.
 const MUTATION_TOOL = /(slack_send_message|slack_schedule_message|slack_create_canvas|slack_update_canvas|transitionJiraIssue|editJiraIssue|addCommentToJiraIssue|createJiraIssue|createConfluencePage|updateConfluencePage|createConfluenceFooterComment|createConfluenceInlineComment|Gmail__(?!.*draft))/;
 // Mutating shell inside a Bash signature (Bash:<command>).
-const MUTATION_BASH = /Bash:.*(git\s+push|gh\s+pr\s+(create|merge)|gh\s+issue\s+create|sentry\s+(issue\s+(resolve|unresolve|archive|merge)|alert|release\s+(create|finalize|delete)|project\s+(create|delete)))/;
+const MUTATION_BASH = /Bash:.*(git\s+push|gh\s+pr\s+(create|merge|ready)|gh\s+issue\s+create|git\s+reset\s+--hard|git\s+clean\s+-|rm\s+-rf|sentry\s+(issue\s+(resolve|unresolve|archive|merge)|alert|release\s+(create|finalize|delete)|project\s+(create|delete)))/;
 
 // A citation: a Jira key, any URL, a markdown link, or a known repo path.
 const CITATION = /(\b[A-Z][A-Z0-9]+-\d+\b|https?:\/\/|\]\(|(?:\.claude|cli|definitions|knowledge|workspace)\/[\w./-]+|\bCLAUDE\.md\b|\bREADME\.md\b)/;
@@ -115,7 +132,41 @@ function scoreTask(task: GoldenTask, text: string, toolsUsed: string[], harnessR
     });
   }
 
-  return { id: task.id, note: task.note, checks, pass: checks.every((ch) => ch.pass) };
+  if (exp.forbid?.length) {
+    const hit = exp.forbid.find((f) => toolsUsed.some((t) => t.includes(f)));
+    checks.push({ name: "forbid", pass: !hit, detail: hit ? `forbidden signature seen: ${hit}` : undefined });
+  }
+
+  if (exp.order?.length) {
+    const idx = exp.order.map((o) => toolsUsed.findIndex((t) => t.includes(o)));
+    const okOrder = idx.every((i) => i >= 0) && idx.every((i, k) => k === 0 || i > idx[k - 1]);
+    checks.push({ name: "order", pass: okOrder, detail: okOrder ? undefined : `expected order [${exp.order.join(" → ")}]; indices ${idx.join(",")}` });
+  }
+
+  if (exp.answer_matches) {
+    const re = new RegExp(exp.answer_matches);
+    checks.push({ name: "answer", pass: re.test(text), detail: re.test(text) ? undefined : `answer does not match /${exp.answer_matches}/` });
+  }
+
+  if (exp.cites?.length) {
+    const missing = exp.cites.filter((p) => !text.includes(p));
+    checks.push({ name: "cites", pass: !missing.length, detail: missing.length ? `not cited: ${missing.join(", ")}` : undefined });
+  }
+
+  if (exp.mentions?.length) {
+    const lower = text.toLowerCase();
+    const missing = exp.mentions.filter((w) => !lower.includes(w.toLowerCase()));
+    checks.push({ name: "mentions", pass: !missing.length, detail: missing.length ? `not mentioned: ${missing.join(", ")}` : undefined });
+  }
+
+  if (!exp.scan) {
+    // definitions/output-contract.md: 8 lines is the default ceiling for a reply.
+    const cap = exp.max_lines ?? 8;
+    const lines = text.split("\n").filter((l) => l.trim() && !/^```/.test(l)).length;
+    checks.push({ name: "verbosity", pass: lines <= cap, detail: lines > cap ? `${lines} non-empty lines, cap ${cap}` : undefined });
+  }
+
+  return { id: task.id, note: task.note, checks, pass: checks.every((ch) => ch.pass), costUsd: null, durationMs: null, tools: toolsUsed.length };
 }
 
 function shortSig(sig: string): string {
@@ -167,10 +218,12 @@ export async function evaluate(rest: string[]): Promise<number> {
         quiet: true,
       });
       const score = scoreTask(task, result.text, result.toolsUsed, harnessRepo);
+      score.costUsd = result.costUsd;
+      score.durationMs = result.durationMs;
       scores.push(score);
       process.stdout.write((score.pass ? c.green("pass") : c.red("FAIL")) + "\n");
     } catch (e) {
-      scores.push({ id: task.id, note: task.note, checks: [{ name: "run", pass: false, detail: (e as Error).message }], pass: false });
+      scores.push({ id: task.id, note: task.note, checks: [{ name: "run", pass: false, detail: (e as Error).message }], pass: false, costUsd: null, durationMs: null, tools: 0 });
       process.stdout.write(c.red("ERROR") + "\n");
     }
   }
@@ -202,18 +255,20 @@ function renderReport(scores: TaskScore[]): string {
     }
   }
 
+  const cost = scores.reduce((a, s) => a + (s.costUsd ?? 0), 0);
+  const secs = scores.reduce((a, s) => a + (s.durationMs ?? 0), 0) / 1000;
   const lines: string[] = [];
-  lines.push(`**${passed}/${scores.length} tasks passed**`);
+  lines.push(`**${passed}/${scores.length} tasks passed**  ·  $${cost.toFixed(2)}  ·  ${Math.round(secs)}s  ·  ${scores.reduce((a, s) => a + s.tools, 0)} tool calls`);
   lines.push("");
   lines.push("| dimension | score |");
   lines.push("|---|---|");
   for (const [name, d] of Object.entries(dims)) lines.push(`| ${name} | ${d.pass}/${d.total} |`);
   lines.push("");
-  lines.push("| task | result | failing checks |");
-  lines.push("|---|---|---|");
+  lines.push("| task | result | $ | tools | failing checks |");
+  lines.push("|---|---|---|---|---|");
   for (const s of scores) {
     const fails = s.checks.filter((ch) => !ch.pass).map((ch) => `${ch.name}${ch.detail ? ` (${ch.detail})` : ""}`);
-    lines.push(`| ${s.id} | ${s.pass ? "✓" : "✗"} | ${fails.join("; ") || "—"} |`);
+    lines.push(`| ${s.id} | ${s.pass ? "✓" : "✗"} | ${s.costUsd === null ? "—" : s.costUsd.toFixed(2)} | ${s.tools} | ${fails.join("; ") || "—"} |`);
   }
   return lines.join("\n");
 }
