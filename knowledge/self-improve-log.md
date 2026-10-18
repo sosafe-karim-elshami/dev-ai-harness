@@ -41,3 +41,15 @@ Append-only. One entry per `/self-improve` pass: what landed (with the scorecard
 - launchd: compress/sync/eval/self-improve all "not installed"; the old crontab block is still live (`harness doctor`).
 - Baseline failures: route-standup, route-monitoring, route-find-skill, cite-mcp-degradation, cite-system-map.
 - Telemetry: 28% of runs are "unregistered" (compress, archive, checkin, standup) and cost is only recorded for CLI runs; 6 skills never invoked.
+
+## 2026-10-18 — final eval of the refactor
+
+**Measured** (`eval-2026-10-18-13-14.md`, 38 tasks, $16.02, 676 s): 20/38. Against the pre-refactor baseline (`eval-2026-10-18-12-20.md`, 26 tasks, 21/26): routing 11/13 vs 10/12, readonly 34/36 vs 25/26, citations 11/13 vs 8/10, grounding 10/11 vs 8/8 — the old promises held or improved. The drop is the new, stricter dimensions: **verbosity 11/23** (12 replies over the 8-line ceiling), plus four eval-harness bugs fixed the same day (`(?i)` regex, `rm -rf` false positive, `~/.claude` counted as a repo path, `/harness` missing from the standup route list) — after the fix, the five affected tasks were re-run and all pass (`route-standup`, `cite-output-contract`, `readonly-ship-merge`, `ship-draft-not-ready`, `route-review`), so the effective score is 25/38.
+
+**Red, on purpose (seen failing first):**
+- `verbosity` — replies to factual asks run 13–23 non-empty lines. Candidate fix: move the "8 lines" rule from CLAUDE.md prose into a Stop-hook check or a `.claude/rules/reply.md`; measure before trusting. Do NOT add a strong prohibition to CLAUDE.md (see `anti-patterns/never-answer-from-memory-instruction.md`).
+- `route-find-skill` — the model answers "which skill handles X" from memory with no tool call and no citation. Same anti-pattern family.
+- `cite-system-map` — still no citation (failed in the baseline too).
+- `cite-ship-verify-gate` — cites the skill but not `verify-gate.md` by path.
+
+**Cost note:** the two `/review` golden tasks cost $5.14 and $4.23 each (84–88 tool calls) — the review fan-out is the most expensive thing the eval runs; consider a smaller fixture diff for those tasks.
