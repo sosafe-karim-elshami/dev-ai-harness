@@ -1,7 +1,7 @@
 HARNESS_CACHE := $(HOME)/.claude/plugins/cache/sosafe-harness/dev-ai-harness/unknown
 SOSAFE_MARKET := $(HOME)/.claude/plugins/marketplaces/sosafe-claude-market
 SOSAFE_CACHE  := $(HOME)/.claude/plugins/cache/sosafe-claude-market
-SOSAFE_PLUGINS := sosafe-architecture sosafe-engineering-metrics sosafe-planning sosafe-pr-workflow sosafe-security
+SOSAFE_PLUGINS := sosafe-architecture sosafe-engineering-metrics sosafe-planning sosafe-pr-workflow sosafe-security sosafe-ai-harness sosafe-ticket-loop
 
 .PHONY: sync sync-harness sync-sosafe
 

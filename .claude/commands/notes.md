@@ -30,7 +30,8 @@ Interpret the first word as the action (default to **capture** if it's plain pro
 ### capture / add
 Write a new note (or append to an existing one when the topic clearly matches).
 - Choose the subfolder by kind: `memory/`, `meetings/`, `digests/`, `monitoring/`,
-  or `${CLAUDE_PLUGIN_ROOT}/knowledge/` (default `${CLAUDE_PLUGIN_ROOT}/knowledge/` for general facts).
+  or `$VAULT/knowledge/` (default `$VAULT/knowledge/` for general facts). Never write
+  into `${CLAUDE_PLUGIN_ROOT}` — that is the shared repo, not your private vault.
 - Filename: kebab-case slug of the title, `.md`.
 - Frontmatter every note:
   ```

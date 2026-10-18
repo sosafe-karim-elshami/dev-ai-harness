@@ -207,7 +207,7 @@ The vault layer of this harness is built on Forte's second brain methodology and
 | Projects | Active, deadline-bound | `meetings/` (date-stamped) + `digests/` (daily drivers) |
 | Areas | Ongoing responsibility | `growth/` (career), `monitoring/` (production health) |
 | Resources | Permanent reference | `knowledge/` (decisions, architecture, how-tos) |
-| Archive | Inactive items | Digests older than 2 weeks (auto-dated) |
+| Archive | Inactive items | Dated notes past the cutoff in `definitions/retention.json` (digests 30d → `archive/`; rollups land in Phase 2) |
 
 **Zettelkasten principles applied:** every note is atomic (one idea), links prolifically via `[[wikilinks]]`, and structure emerges from the link graph rather than from folder hierarchy. The Obsidian graph view makes your mental model visible over time.
 

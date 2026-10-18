@@ -17,7 +17,13 @@
       "Bash(mkdir -p:*)",
       "Read",
       "Grep",
-      "Glob"
+      "Glob",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(node:*)",
+      "Bash(semgrep:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)"
     ],
     "deny": [
       "Read(./**/.env)",
@@ -39,7 +45,9 @@
     "sosafe-pr-workflow@sosafe-claude-market": true,
     "sosafe-planning@sosafe-claude-market": true,
     "sosafe-security@sosafe-claude-market": true,
-    "sosafe-architecture@sosafe-claude-market": true
+    "sosafe-architecture@sosafe-claude-market": true,
+    "sosafe-ai-harness@sosafe-claude-market": true,
+    "sosafe-ticket-loop@sosafe-claude-market": true
   },
   "hooks": {
     "PreToolUse": [
