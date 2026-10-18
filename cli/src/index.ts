@@ -38,6 +38,9 @@ import { registry } from "./registry.js";
 import { doctor } from "./doctor.js";
 import { system } from "./system.js";
 import { archive } from "./archive.js";
+import { compress } from "./compress.js";
+import { linksCli } from "./links.js";
+import { installLaunchd, recordLastRun, vaultReadable } from "./launchd.js";
 import { metrics } from "./observability.js";
 import { graphPath } from "./paths.js";
 
@@ -90,6 +93,16 @@ async function main(argv: string[]): Promise<number> {
       return doctor(rest);
     case "archive":
       return archive(rest);
+    case "compress":
+      return compress(rest);
+    case "links": {
+      const vIdx = rest.findIndex((a) => a === "--vault");
+      const vault = vIdx !== -1 ? rest[vIdx + 1] : readConfig()?.vaultPath;
+      if (!vault) { fail("No vault configured (config.json → vaultPath) and no --vault given."); return 1; }
+      return linksCli(rest.filter((a, i) => a !== "--vault" && i !== vIdx + 1), vault, (m) => info(m));
+    }
+    case "install-launchd":
+      return installLaunchd(rest);
     case "metrics":
       return metrics(rest);
     case "mcp":
@@ -371,7 +384,10 @@ function usage(): number {
       `  harness eval [id] [--no-save]   ${c.dim("replay golden tasks; score routing/read-only/citations")}\n` +
       `  harness registry check|sync|show ${c.dim("routing single source of truth: drift check, regen CLAUDE.md, tiers")}\n` +
       `  harness doctor [--json]         ${c.dim("probe which capabilities this environment can actually reach")}\n` +
-      `  harness archive [--apply]       ${c.dim("retire dated vault notes past the cutoff (dry run by default; never deletes)")}\n` +
+      `  harness archive [--apply]       ${c.dim("rule-only retention: move aged/expired/superseded vault notes (never deletes)")}\n` +
+      `  harness compress [--apply] [--knowledge]  ${c.dim("roll up dailies → weekly → monthly, distil meetings, consolidate knowledge; dry run by default")}\n` +
+      `  harness links report|repair|normalize     ${c.dim("vault wikilink health; repair re-points pre-archive links")}\n` +
+      `  harness install-launchd [--apply]  ${c.dim("schedule compress/sync/eval/self-improve via launchd (replaces cron)")}\n` +
       `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +
       `  harness sessions                ${c.dim("list saved contexts + session ids")}\n` +
       `  harness reset <context>         ${c.dim("forget a context's session")}\n` +
@@ -387,9 +403,25 @@ function usage(): number {
   return 0;
 }
 
+const startedAt = Date.now();
+const job = process.env.HARNESS_JOB;
+
+function finish(code: number, summary?: string): void {
+  // Under launchd every job records when it ran, how it exited, and whether the
+  // vault was readable — the signal that Full Disk Access is missing.
+  if (job) {
+    try {
+      recordLastRun(job, { ts: new Date().toISOString(), exit: code, duration_ms: Date.now() - startedAt, summary, vault_readable: vaultReadable() });
+    } catch {
+      /* never fail a job over its own bookkeeping */
+    }
+  }
+  process.exit(code);
+}
+
 main(process.argv.slice(2))
-  .then((code) => process.exit(code))
+  .then((code) => finish(code))
   .catch((err) => {
     fail(err?.message ?? String(err));
-    process.exit(1);
+    finish(1, err?.message ?? String(err));
   });

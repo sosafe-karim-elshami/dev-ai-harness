@@ -1,73 +1,193 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "$comment": [
-    "Retention policy for the harness's own output. The vault accumulates one note per",
-    "day per surface — digests, meetings, monitoring snapshots — forever. Left alone the",
-    "live folders stop being scannable, which is the actual cost: a `## Recent` list with",
-    "120 entries is not recent.",
-    "",
-    "This encodes the convention already in the vault: date-stamped notes older than the",
-    "cutoff move to a flat `<folder>/archive/`, and their links leave the index. Nothing",
-    "is deleted, ever. `harness archive` is a dry run unless given --apply."
+    "Retention policy v2 for the harness's own vault output. v1 only MOVED dated notes;",
+    "v2 adds a rollup ladder (daily → weekly → monthly digests), distillation for",
+    "meetings and knowledge, frontmatter TTLs, link rewriting on move, index budgets,",
+    "and an audit log. Nothing is deleted, ever. `harness compress` (and `harness",
+    "archive`, its rule-only subset) is a dry run unless given --apply."
   ],
-
   "default_after_days": 30,
-
+  "date_from_default": [
+    "filename-prefix",
+    "frontmatter:date",
+    "mtime"
+  ],
   "folders": {
     "digests": {
-      "strategy": "archive",
-      "after_days": 30,
+      "strategy": "rollup",
+      "recurse": false,
+      "match": {
+        "frontmatter_type": [
+          "daily"
+        ],
+        "filename": "^\\d{4}-\\d{2}-\\d{2}"
+      },
       "date_from": "filename-prefix",
-      "note": "Daily standup/checkin files, plus dated variants like <date>-groom.md."
+      "ladder": [
+        {
+          "from": "daily",
+          "to": "weekly",
+          "after_days": 14,
+          "period": "iso-week",
+          "out_dir": "digests/weekly",
+          "children_to": "digests/archive",
+          "model": "haiku",
+          "max_budget_usd": 0.6,
+          "min_children": 2
+        },
+        {
+          "from": "weekly",
+          "to": "monthly",
+          "after_days": 90,
+          "period": "month",
+          "out_dir": "digests/monthly",
+          "children_to": "digests/archive/weekly",
+          "model": "haiku",
+          "max_budget_usd": 0.9,
+          "min_children": 2
+        }
+      ],
+      "budgets": {
+        "max_live_files": 20
+      },
+      "exempt_types": [
+        "compress-plan",
+        "rollup"
+      ],
+      "note": "Dailies that are not type: daily (e.g. <date>-groom.md) and single-child weeks fall back to a plain archive move after 30 days."
     },
     "meetings": {
-      "strategy": "archive",
-      "after_days": 30,
+      "strategy": "distill",
+      "recurse": false,
       "date_from": "filename-prefix",
-      "note": "Agendas and notes. Archiving keeps prior-occurrence lookup working — prep-assess matches by title stem and reads the archive too."
+      "after_days": 30,
+      "group_by": "stem",
+      "stem_pattern": "^\\d{4}-\\d{2}-\\d{2}-(.+?)(?:-(?:prep|notes|followup))?$",
+      "period": "month",
+      "out_dir": "meetings/rollups",
+      "children_to": "meetings/archive",
+      "promote": {
+        "section": "Decisions",
+        "to": "knowledge/decision-log.md"
+      },
+      "model": "sonnet",
+      "max_budget_usd": 0.9,
+      "budgets": {
+        "max_live_files": 25
+      },
+      "note": "Recurring stems (ltc-daily, ltc-replenishment, …) distil into one note per stem per month; single-note stems archive without the LLM."
     },
     "monitoring": {
       "strategy": "archive",
       "after_days": 30,
-      "date_from": "filename-prefix",
-      "note": "Dated production-health snapshots. Undated topical notes here are exempt by the no-date rule."
+      "date_from": "filename-prefix"
     },
     "growth": {
       "strategy": "archive",
       "after_days": 180,
-      "date_from": "filename-prefix",
-      "note": "Visibility audits and talk outlines stay live far longer — they are evidence for performance conversations. idp-tracker.md is exempt outright."
+      "recurse": true,
+      "date_from": [
+        "filename-prefix",
+        "frontmatter:date"
+      ],
+      "exempt_filenames": [
+        "idp-tracker.md"
+      ],
+      "note": "Evidence for performance conversations stays live far longer."
     },
     "knowledge": {
-      "strategy": "keep",
-      "note": "Topical, not chronological. A two-year-old architecture note can be the most load-bearing file in the vault. Archive these by hand, or let `harness memory audit` flag staleness."
+      "strategy": "distill",
+      "recurse": true,
+      "exclude_dirs": [
+        "archive",
+        "assets"
+      ],
+      "stale_after_days": 120,
+      "updated_from": [
+        "frontmatter:updated",
+        "frontmatter:date",
+        "mtime"
+      ],
+      "time_bound": {
+        "ticket_key_pattern": "^(ltc|dx|sof|csa)-\\d+",
+        "stale_after_days": 60,
+        "frontmatter_types": [
+          "plan",
+          "tracker",
+          "investigation"
+        ]
+      },
+      "near_dupe_jaccard": 0.6,
+      "archive_to": "knowledge/archive",
+      "model": "sonnet",
+      "max_budget_usd": 1.5,
+      "budgets": {
+        "max_live_files": 40
+      },
+      "note": "Topical, not chronological: nothing moves without a proposal (ADD | UPDATE | SUPERSEDE | NOOP) in the plan note, and only SUPERSEDE moves a file. `last_updated` is never a date source — it holds a time."
     },
     "memory": {
       "strategy": "keep",
-      "note": "Durable by definition. Curation belongs to `harness memory audit`, which surfaces candidates and never deletes."
+      "note": "Durable by definition. `harness memory audit` surfaces candidates and never deletes."
     }
   },
-
+  "frontmatter": {
+    "expires_key": "expires",
+    "status_key": "status",
+    "superseded_value": "superseded",
+    "superseded_by_key": "superseded_by",
+    "pinned_key": "pinned",
+    "archived_from_key": "archived_from"
+  },
   "exempt": {
-    "filenames": ["index.md", "idp-tracker.md", "how-this-works.md", "memory-index.md"],
+    "filenames": [
+      "index.md",
+      "How this works.md",
+      "how-this-works.md",
+      "memory-index.md",
+      "decision-log.md"
+    ],
     "rules": [
-      "No YYYY-MM-DD prefix in the filename → exempt. Undated means topical, and topical means a human decides.",
-      "Today's date → never archived, whatever the cutoff.",
-      "Already inside an archive/ folder → skip.",
-      "Any note whose frontmatter carries `pinned: true` → exempt."
+      "No resolvable date (per the date_from chain) → exempt, unless `expires:` is set.",
+      "Today's date → never touched.",
+      "Inside any archive/ folder → skip.",
+      "`pinned: true` → exempt from everything, including index pruning.",
+      "`expires: YYYY-MM-DD` in the past → archived regardless of folder strategy, even knowledge/.",
+      "`status: superseded` → moved to <folder>/archive/ today, links rewritten, never deleted."
     ]
   },
-
   "index": {
-    "prune_links": true,
-    "$comment": "Archived notes' links are removed from index.md, matching the existing convention: the index lists what's live. An `<folder>/archive/index.md` is generated so archived notes stay reachable rather than orphaned.",
-    "recent_section": "## Recent"
+    "file": "index.md",
+    "recent_section": "## Recent",
+    "recent_markers": [
+      "<!-- harness:recent:begin -->",
+      "<!-- harness:recent:end -->"
+    ],
+    "recent_count": 10,
+    "max_index_lines": 120,
+    "overflow_to": "knowledge/index.md",
+    "importance": {
+      "half_life_days": 90,
+      "pinned_boost": 2.0,
+      "star_boost": 1.5
+    },
+    "prune_links": true
   },
-
+  "links": {
+    "mode": "rewrite-on-move",
+    "report_dangling": true,
+    "fail_on_ambiguous_bare": true
+  },
+  "audit": {
+    "log": "~/.claude/sosafe-harness/compress.jsonl",
+    "plan_note": "digests/{date}-compress-plan.md"
+  },
   "not_archived": {
-    "runs.jsonl": "Read in full by `harness metrics` for all-time counts; rotating it would silently reset the observability baseline. It grows ~1 line per skill invocation — negligible.",
-    "graph.json": "Rebuilt wholesale by `harness graph build`. No history to retain.",
-    "system.json": "Overwritten on every `harness sync`. A snapshot, not a log.",
+    "runs.jsonl": "Read in full by `harness metrics` for all-time counts; never rotated.",
+    "compress.jsonl": "The audit trail of this very policy. Append-only.",
+    "graph.json": "Rebuilt wholesale by `harness graph build`.",
+    "system.json": "Overwritten on every `harness sync`.",
     "workspace/": "Gitignored clones. Managed by `harness-workspace`, not retention."
   }
 }

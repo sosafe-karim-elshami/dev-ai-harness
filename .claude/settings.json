@@ -81,6 +81,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/cli/dist/index.js\" compress --nudge 2>/dev/null || true"
+          }
+        ]
+      }
     ]
   }
 }

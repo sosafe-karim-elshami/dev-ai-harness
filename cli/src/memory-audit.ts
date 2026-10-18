@@ -5,6 +5,7 @@
 //
 //   ~/.claude/sosafe-harness/memory/  (CLI injected memory)
 //   <vaultPath>/memory/               (the private Obsidian vault, if set)
+//   <vaultPath>/knowledge/            (the vault's topical notes — the big one)
 //   <harnessRepo>/knowledge/          (committed team memory + anti-patterns)
 //
 // — and flags entries that are STALE (old `updated:` / mtime) or NEAR-DUPLICATE
@@ -17,6 +18,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { getHarnessRepo, memoryDir, readConfig } from "./paths.js";
 import { runClaude } from "./claude.js";
+import { jaccard, tokenize } from "./similarity.js";
 import { banner, c, info, ok, warn } from "./ui.js";
 
 const DEFAULT_STALE_DAYS = 120;
@@ -42,28 +44,10 @@ function listMarkdown(dir: string): string[] {
   return out;
 }
 
-function tokenize(body: string): Set<string> {
-  return new Set(
-    body
-      .toLowerCase()
-      .replace(/^---[\s\S]*?---/, "") // drop frontmatter
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 3),
-  );
-}
-
 function parseUpdated(body: string, abs: string): { date: Date; explicit: boolean } {
   const m = body.match(/^updated:\s*(\d{4}-\d{2}-\d{2})/m);
   if (m) return { date: new Date(m[1]), explicit: true };
   return { date: statSync(abs).mtime, explicit: false };
-}
-
-function jaccard(a: Set<string>, b: Set<string>): number {
-  if (!a.size || !b.size) return 0;
-  let inter = 0;
-  for (const t of a) if (b.has(t)) inter++;
-  return inter / (a.size + b.size - inter);
 }
 
 function collect(label: string, dir: string): Entry[] {
@@ -96,6 +80,7 @@ export async function memoryAudit(rest: string[]): Promise<number> {
   const entries: Entry[] = [
     ...collect("cli-memory", memoryDir()),
     ...(cfg?.vaultPath ? collect("vault", join(cfg.vaultPath, "memory")) : []),
+    ...(cfg?.vaultPath ? collect("vault-knowledge", join(cfg.vaultPath, "knowledge")) : []),
     ...(harnessRepo ? collect("knowledge", join(harnessRepo, "knowledge")) : []),
   ];
 
