@@ -29,7 +29,7 @@ The subagent delegates to `sosafe-ticket-loop:check-ticket-quality` and
 
 | Verdict | Route |
 |---|---|
-| `feasible` | Keep in the groomed list with its size and a one-line "why ready". |
+| `feasible` | Keep in the groomed list with its size and a one-line "why ready". Overall size ≤ M and the labels resolve to exactly one repo → `next: /ship KEY` (print the command; never invoke it from groom). |
 | `too-big` | Offer `sosafe-ticket-loop:decompose-ticket` to split into linked subtasks that each pass the quality check. It delegates creation to `sosafe-planning:sosafe-jira-planning`. Creates tickets → **gated**. |
 | `blocked` | Collect the suggested comment plus the missing info into a "not ready" list. Posting the comment or pinging the author → **gated**. |
 
@@ -39,7 +39,7 @@ Order by `${CLAUDE_PLUGIN_ROOT}/definitions/urgency-matrix.json`: leadership/ove
 due date. One line per ticket:
 
 ```
-<pri> <flags> [KEY] <summary> — <size> — <verdict> — <next: keep | split | needs: …>
+<pri> <flags> [KEY] <summary> — <size> — <verdict> — <next: keep | split | ship | needs: …>
 ```
 
 Save a snapshot to `$VAULT/digests/<YYYY-MM-DD>-groom.md` (`type: groom`, `tags: [harness,

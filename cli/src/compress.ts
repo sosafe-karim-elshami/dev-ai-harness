@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import { join, posix } from "node:path";
 import { randomUUID } from "node:crypto";
 import { getHarnessRepo, readConfig, compressCacheDir, ensureDir } from "./paths.js";
-import { audit } from "./audit.js";
+import { audit, readAudit } from "./audit.js";
 import { appendRun } from "./observability.js";
 import { runClaudeStructured, type StructuredRunner } from "./claude.js";
 import { tierToModel } from "./registry.js";
@@ -954,8 +954,10 @@ export async function compress(argv: string[]): Promise<number> {
       const pol = loadPolicy(harnessRepo);
       const plan = planAll({ apply: false, vault, harnessRepo, maxBudgetUsd: 0, force: false, knowledge: false, today }, pol);
       const due = plan.archive.length + plan.rollups.filter((r) => r.status !== "noop").reduce((n, r) => n + r.children.length, 0) + plan.distills.filter((d) => d.status !== "noop").reduce((n, d) => n + d.children.length, 0);
-      const last = readLastRuns().compress;
-      const age = last ? Math.round((Date.now() - new Date(last.ts).getTime()) / 86_400_000) : null;
+      // Last run: launchd's last-run.json, else the newest `done` line in the audit log
+      // (a hand-run compress counts too).
+      const last = readLastRuns().compress?.ts ?? readAudit().filter((e) => e.phase === "done" && !e.dry_run).map((e) => e.ts).sort().pop();
+      const age = last ? Math.round((Date.now() - new Date(last).getTime()) / 86_400_000) : null;
       if (due || (age !== null && age > 8) || age === null) {
         console.log(`harness: ${due} note(s) due for archive/rollup; last compress run ${age === null ? "never" : `${age}d ago`} — run \`harness compress\` to see the plan.`);
       }

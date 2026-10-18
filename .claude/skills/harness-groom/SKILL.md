@@ -43,8 +43,8 @@ Scope: default to `jira.project_keys`; a named board, epic, sprint, or single ti
 1. **Sweep** — call `harness-pm` for Jira hygiene, build the candidate list. `pipeline.md` §1.
 2. **Fan out readiness** — one `ticket-readiness` subagent (Task tool) per candidate, in
    parallel. Each returns verdict + size + reason as JSON. `pipeline.md` §2.
-3. **Route** each verdict: `feasible` keep, `too-big` offer a split, `blocked` collect what's
-   missing. `pipeline.md` §3.
+3. **Route** each verdict: `feasible` keep (≤ M and one repo → `next: /ship KEY`), `too-big`
+   offer a split, `blocked` collect what's missing. `pipeline.md` §3.
 4. **Order and present** by the urgency matrix, one line per ticket; save the snapshot.
    `pipeline.md` §4.
 5. **Batch every write** into a single confirmation. `pipeline.md` §5.
