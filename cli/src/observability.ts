@@ -8,16 +8,35 @@
 //
 // Read-only. The log lives in the PER-USER private dir, never in the repo.
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { getHarnessRepo, configDir } from "./paths.js";
+import { getHarnessRepo, configDir, ensureDir } from "./paths.js";
 import { banner, c, info, warn } from "./ui.js";
 import { loadRegistry, type Tier } from "./registry.js";
 
-interface Run {
+export interface Run {
   ts?: number;
+  event?: string;
   skill?: string;
   success?: boolean;
+  /** Jira key the run was about, when the hook or CLI could attribute one. */
+  ticket?: string;
+  /** Present for CLI-spawned runs (claude -p reports it); absent for in-session hooks. */
+  cost_usd?: number;
+  duration_ms?: number;
+  turns?: number;
+  agent?: string;
+  session_id?: string;
+}
+
+/** Append one record to runs.jsonl. Non-fatal: telemetry must never break a run. */
+export function appendRun(run: Omit<Run, "ts"> & { ts?: number }): void {
+  try {
+    ensureDir(configDir());
+    appendFileSync(runsPath(), JSON.stringify({ ts: Math.floor(Date.now() / 1000), ...run }) + "\n", "utf8");
+  } catch {
+    /* ignore */
+  }
 }
 
 interface SkillRow {
@@ -30,6 +49,8 @@ interface SkillRow {
   failures: number;
   success_rate: number | null;
   last_seen_days_ago: number | null;
+  /** Sum of cost_usd over runs that reported one (CLI runs only). */
+  cost_usd: number;
 }
 
 /**
@@ -41,6 +62,13 @@ interface SkillRow {
 function tierSpend(rows: SkillRow[]): Record<Tier | "unregistered", number> {
   const out: Record<Tier | "unregistered", number> = { haiku: 0, sonnet: 0, opus: 0, unregistered: 0 };
   for (const r of rows) out[r.tier ?? "unregistered"] += r.runs_total;
+  return out;
+}
+
+/** Dollars by declared tier, from the runs that reported a cost. */
+function tierCost(rows: SkillRow[]): Record<Tier | "unregistered", number> {
+  const out: Record<Tier | "unregistered", number> = { haiku: 0, sonnet: 0, opus: 0, unregistered: 0 };
+  for (const r of rows) out[r.tier ?? "unregistered"] += r.cost_usd;
   return out;
 }
 
@@ -100,12 +128,15 @@ export function metrics(rest: string[]): number {
   const recent = new Map<string, number>();
   const fails = new Map<string, number>();
   const lastSeen = new Map<string, number>();
+  const cost = new Map<string, number>();
   const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
 
   for (const r of runs) {
     if (!r.skill) continue;
+    if (r.event === "subagent_stop") continue; // attributed to the parent skill's run
     const ts = r.ts ?? 0;
     bump(total, r.skill);
+    if (typeof r.cost_usd === "number") cost.set(r.skill, (cost.get(r.skill) ?? 0) + r.cost_usd);
     if (ts >= cutoff) bump(recent, r.skill);
     if (r.success === false) bump(fails, r.skill);
     lastSeen.set(r.skill, Math.max(lastSeen.get(r.skill) ?? 0, ts));
@@ -158,6 +189,7 @@ export function metrics(rest: string[]): number {
       failures: f,
       success_rate: runsN ? round(1 - f / runsN, 3) : null,
       last_seen_days_ago: ls !== undefined ? round((now - ls) / 86400, 1) : null,
+      cost_usd: round(cost.get(name) ?? 0, 4),
     };
   });
 
@@ -178,6 +210,7 @@ export function metrics(rest: string[]): number {
           window_days: windowDays,
           totals,
           tier_spend: tierSpend(perSkill),
+          tier_cost_usd: tierCost(perSkill),
           never_used: neverUsed,
           harness_composites: harnessComposites,
           external_skills: external,
@@ -202,12 +235,15 @@ export function metrics(rest: string[]): number {
   );
 
   const spend = tierSpend(perSkill);
+  const dollars = tierCost(perSkill);
   const spendTotal = Object.values(spend).reduce((a, b) => a + b, 0);
   if (spendTotal) {
-    process.stdout.write(c.bold("Runs by declared tier\n"));
+    process.stdout.write(c.bold("Runs by declared tier") + c.dim("   (cost: CLI runs only — in-session hooks report no cost)\n"));
     for (const t of ["haiku", "sonnet", "opus", "unregistered"] as const) {
       if (!spend[t]) continue;
-      process.stdout.write(`  ${c.dim(t.padEnd(14))}${String(spend[t]).padStart(5)}  ${c.dim(pct(spend[t] / spendTotal))}\n`);
+      process.stdout.write(
+        `  ${c.dim(t.padEnd(14))}${String(spend[t]).padStart(5)}  ${c.dim(pct(spend[t] / spendTotal))}  ${c.dim(`$${dollars[t].toFixed(2)}`)}\n`,
+      );
     }
     process.stdout.write("\n");
   }

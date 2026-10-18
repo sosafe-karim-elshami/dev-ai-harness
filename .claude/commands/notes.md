@@ -6,62 +6,32 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash(cat:*), Bash(ls:*), Bash(jq:*
 
 # /notes — Harness knowledge base
 
-A global entry point to my Obsidian knowledge base. Works from **any** repo or
-session — it does not depend on the current directory. The vault is per-dev and
-private; this command only reads/writes within it.
+Global entry point to the per-dev Obsidian vault; works from any repo or session.
 
-## Locate the vault (always do this first)
+## Locate the vault first
 
-Read `vaultPath` from `~/.claude/sosafe-harness/config.json`:
-
-```
-jq -r '.vaultPath // empty' ~/.claude/sosafe-harness/config.json
-```
-
-If it's empty or the folder doesn't exist, the dev hasn't scaffolded their vault
-yet — tell them to run `/setup` (which scaffolds it from `${CLAUDE_PLUGIN_ROOT}/definitions/vault-templates`
-and records `vaultPath`). Do not guess a path. Never write notes outside the vault.
-Call the resolved directory `$VAULT`.
+`$VAULT` = `jq -r '.vaultPath // empty' ~/.claude/sosafe-harness/config.json`. Empty or
+missing folder → tell the user to run `/setup` (it scaffolds the vault from
+`${CLAUDE_PLUGIN_ROOT}/definitions/vault-templates`). Never guess a path; never write outside `$VAULT`;
+never write into `${CLAUDE_PLUGIN_ROOT}` — that is the shared repo.
 
 ## Request: $ARGUMENTS
 
-Interpret the first word as the action (default to **capture** if it's plain prose):
+First word is the action; plain prose means **capture**.
 
-### capture / add
-Write a new note (or append to an existing one when the topic clearly matches).
-- Choose the subfolder by kind: `memory/`, `meetings/`, `digests/`, `monitoring/`,
-  or `$VAULT/knowledge/` (default `$VAULT/knowledge/` for general facts). Never write
-  into `${CLAUDE_PLUGIN_ROOT}` — that is the shared repo, not your private vault.
-- Filename: kebab-case slug of the title, `.md`.
-- Frontmatter every note:
-  ```
-  ---
-  title: <human title>
-  type: memory | meeting | digest | monitoring | reference | moc
-  tags: [harness, ...]
-  updated: <YYYY-MM-DD from `date +%F`>
-  ---
-  ```
-- Body: the fact/note. Link related notes with `[[wikilinks]]` (a link to a
-  not-yet-existing note is fine — it's a to-do marker).
-- If it's a durable **memory**, also add a one-line pointer under "## Facts" in
-  `memory/index.md`.
-- After writing, add/refresh a one-line bullet under "## Recent" in `$VAULT/index.md`.
-
-### search / find
-`rg -i "<query>" "$VAULT"` (and search titles via `Glob`). Return matching notes
-as clickable `path:line` refs with a one-line snippet each. Read the top hits and
-synthesize a grounded answer — cite the note names.
-
-### list
-List notes by area (folder), newest first (`ls -t`). Keep it short.
-
-### open
-`open "$VAULT/<match>.md"` to open the note in Obsidian (macOS).
+- **capture / add** — new note, or append when the topic clearly matches. Folder by kind:
+  `memory/`, `meetings/`, `digests/`, `monitoring/`, else `knowledge/`. Filename: kebab-case
+  slug. Frontmatter: `title`, `type` (memory | meeting | daily | monitoring | reference | moc),
+  `tags: [harness, …]`, `updated: <date +%F>`; optional `expires: <YYYY-MM-DD>` for
+  time-bound facts and `status: superseded` + `superseded_by:` when replaced. Link with
+  full-path `[[folder/name]]` wikilinks. A durable memory also gets a one-line pointer under
+  "## Facts" in `memory/index.md`; every note gets a bullet under "## Recent" in `$VAULT/index.md`.
+- **search / find** — `rg -i "<query>" "$VAULT"` plus title `Glob`; return `path:line` refs with a
+  one-line snippet, then a grounded synthesis citing note names.
+- **list** — notes by folder, newest first (`ls -t`). Short.
+- **open** — `open "$VAULT/<match>.md"` (macOS).
 
 ## Principles
-- Plain Markdown + `[[wikilinks]]` only — no plugins required.
-- One note = one thing; keep them small and linkable.
-- Dates absolute; never "yesterday".
-- Writing a note is local and safe. Anything outward (Slack/Jira/email) still
-  requires explicit confirmation and goes through the harness guard hook.
+
+Plain Markdown + wikilinks only. One note, one thing. Dates absolute. Writing a note is local
+and safe; anything outward still goes through the guard hook.

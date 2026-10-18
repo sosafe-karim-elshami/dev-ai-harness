@@ -20,6 +20,9 @@ skill="$(printf '%s' "$input" | jq -r '.tool_input.skill // empty' 2>/dev/null)"
 skill="${skill#dev-ai-harness:}"   # normalize: strip plugin namespace prefix
 
 session="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)"
+# Ticket attribution: the first Jira key in the skill's arguments, if any, so
+# per-ticket outcomes (and later cost) can be measured.
+ticket="$(printf '%s' "$input" | jq -r '.tool_input.args // .tool_input.arguments // empty' 2>/dev/null | grep -oE '\b[A-Z][A-Z0-9]+-[0-9]+\b' | head -1)"
 
 # Success is explicit: a failure is is_error==true OR success==false; everything
 # else is a success. (Don't use jq's `//` — it treats `false` as empty and would
@@ -29,8 +32,9 @@ ok="$(printf '%s' "$input" | jq -r 'if .tool_response.is_error == true then "fal
 jq -cn \
   --arg skill "$skill" \
   --arg session "$session" \
+  --arg ticket "$ticket" \
   --argjson ok "${ok:-true}" \
-  '{ts: (now|floor), event: "skill_invoked", skill: $skill, session_id: $session, success: $ok}' \
+  '{ts: (now|floor), event: "skill_invoked", skill: $skill, session_id: $session, success: $ok} + (if $ticket != "" then {ticket: $ticket} else {} end)' \
   >> "$log" 2>/dev/null || true
 
 exit 0

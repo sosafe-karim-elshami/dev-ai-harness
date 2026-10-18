@@ -48,8 +48,14 @@ export function writeConfig(cfg: HarnessConfig): void {
   writeFileSync(configPath(), JSON.stringify(cfg, null, 2) + "\n", "utf8");
 }
 
-/** Resolve the harness repo, or throw a helpful error pointing at `harness init`. */
+/**
+ * Resolve the harness repo, or throw a helpful error pointing at `harness init`.
+ * `HARNESS_REPO` overrides config.json so a worktree or a test fixture can run the
+ * CLI against itself without re-pointing the user's config.
+ */
 export function getHarnessRepo(): string {
+  const override = process.env.HARNESS_REPO;
+  if (override && existsSync(join(override, "CLAUDE.md"))) return override;
   const cfg = readConfig();
   if (!cfg?.harnessRepo) {
     throw new Error(

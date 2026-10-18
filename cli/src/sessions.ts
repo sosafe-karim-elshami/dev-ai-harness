@@ -16,6 +16,22 @@ export interface SessionRecord {
   lastRunAt: string | null;
   runs: number;
   lastCommand: string | null;
+  /** Set when this record replaced an older session that hit the rotation limit. */
+  rotatedFrom?: string;
+}
+
+/**
+ * A resumed session carries its whole history into every turn. Left alone, a
+ * context that runs twice a day grows without bound, so rotate it: after this
+ * many runs or this many days, start fresh and record where it came from.
+ */
+export const ROTATE_AFTER_RUNS = 20;
+export const ROTATE_AFTER_DAYS = 7;
+
+function shouldRotate(r: SessionRecord, now = Date.now()): boolean {
+  if (r.runs >= ROTATE_AFTER_RUNS) return true;
+  const ageDays = (now - new Date(r.createdAt).getTime()) / 86_400_000;
+  return r.runs > 0 && ageDays >= ROTATE_AFTER_DAYS;
 }
 
 export type SessionMap = Record<string, SessionRecord>;
@@ -43,7 +59,7 @@ export function writeSessions(map: SessionMap): void {
 export function getOrCreate(context: string): { record: SessionRecord; isNew: boolean } {
   const map = readSessions();
   const existing = map[context];
-  if (existing) return { record: existing, isNew: existing.runs === 0 };
+  if (existing && !shouldRotate(existing)) return { record: existing, isNew: existing.runs === 0 };
   return {
     record: {
       sessionId: randomUUID(),
@@ -51,6 +67,7 @@ export function getOrCreate(context: string): { record: SessionRecord; isNew: bo
       lastRunAt: null,
       runs: 0,
       lastCommand: null,
+      ...(existing ? { rotatedFrom: existing.sessionId } : {}),
     },
     isNew: true,
   };

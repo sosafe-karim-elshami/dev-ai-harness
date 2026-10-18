@@ -7,6 +7,8 @@ import { getHarnessRepo, memoryDir, digestsDir, ensureDir } from "./paths.js";
 import { getOrCreate, recordRun } from "./sessions.js";
 import { runClaude, type RunResult } from "./claude.js";
 import { loadMemory } from "./memory.js";
+import { loadRegistry, tierToModel } from "./registry.js";
+import { appendRun } from "./observability.js";
 import { header, footer, fail, ok } from "./ui.js";
 
 export interface ExecuteOptions {
@@ -17,6 +19,28 @@ export interface ExecuteOptions {
   quiet?: boolean;
   /** Write the result to ~/.claude/sosafe-harness/digests/ (for scheduled runs). */
   digest?: boolean;
+  /** Registry tier or model id; default: the tier the registry declares for this context. */
+  model?: string;
+  /** Dollar cap for the run; scheduled runs always set one. */
+  maxBudgetUsd?: number;
+  maxTurns?: number;
+}
+
+/**
+ * The tier a context should run at: the skill or composite whose entry is
+ * `/<context>` (standup, groom, self-improve, …). Unknown contexts get no
+ * override and use the session default.
+ */
+export function tierForContext(context: string, harnessRepo: string): string | undefined {
+  try {
+    const reg = loadRegistry(harnessRepo);
+    const hit =
+      reg.skills.find((s) => s.entry.includes(`/${context}`) || s.name === context) ??
+      reg.composites.find((k) => k.entry.includes(`/${context}`) || k.name === context);
+    return hit ? tierToModel(hit.tier) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function executeContext(opts: ExecuteOptions): Promise<RunResult> {
@@ -35,6 +59,18 @@ export async function executeContext(opts: ExecuteOptions): Promise<RunResult> {
     addDirs: existsSync(memoryDir()) ? [memoryDir()] : [],
     autonomous: opts.autonomous ?? true,
     quiet: opts.quiet,
+    model: opts.model ? tierToModel(opts.model) : tierForContext(opts.context, harnessRepo),
+    maxBudgetUsd: opts.maxBudgetUsd,
+    maxTurns: opts.maxTurns,
+  });
+
+  appendRun({
+    event: "cli_run",
+    skill: opts.context,
+    success: !result.isError,
+    cost_usd: result.costUsd ?? undefined,
+    duration_ms: result.durationMs ?? undefined,
+    turns: result.turns,
   });
 
   // Persist using the session id claude actually used (it echoes ours back).

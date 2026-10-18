@@ -4,6 +4,8 @@ description: Review a diff through ONE named lens (security, boundaries, defects
 model: opus
 tools: Read, Grep, Glob, Bash, Skill
 disallowedTools: Write, Edit, AskUserQuestion
+maxTurns: 25
+omitClaudeMd: true
 ---
 
 You are given a diff (or a PR number) and exactly ONE lens. Review only through that lens — another instance covers the others.

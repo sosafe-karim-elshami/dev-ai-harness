@@ -4,8 +4,9 @@
 // tier it runs at, what it reads/writes, what it delegates to, and which gates
 // apply. Three things consume it:
 //
-//   1. CLAUDE.md's routing table is GENERATED from it (`registry sync`), so the
-//      table can't drift from the skills that actually exist.
+//   1. definitions/registry.index.md — a compact routing index — is GENERATED
+//      from it (`registry sync`). The router reads the index first and the full
+//      entry only for the skill it picks; CLAUDE.md carries no table at all.
 //   2. `registry check` fails on drift — a skill on disk with no entry, an entry
 //      with no skill, a frontmatter tier that contradicts the registry, or a
 //      SKILL.md over the 60-line contract cap. Runs as part of `harness eval`.
@@ -29,8 +30,32 @@ export const END_MARKER = "<!-- END GENERATED ROUTING -->";
  */
 export const SKILL_LINE_CAP = 60;
 export const DESCRIPTION_CHAR_CAP = 1024;
+/** CLAUDE.md is loaded into every session: total lines, blank ones included. */
+export const CLAUDE_MD_LINE_CAP = 60;
+/** Commands and agents: non-empty body lines after the frontmatter. */
+export const COMMAND_LINE_CAP = 40;
+export const AGENT_LINE_CAP = 40;
+export const INDEX_FILE = join("definitions", "registry.index.md");
 
 export type Tier = "haiku" | "sonnet" | "opus";
+
+/**
+ * The model each tier resolves to when a run is spawned headless. A tier is only
+ * real if `--model` is passed; before this existed every CLI and cron run used the
+ * session default regardless of what the registry declared.
+ */
+export function tierToModel(tier: Tier | string): string {
+  switch (tier) {
+    case "haiku":
+      return process.env.HARNESS_MODEL_HAIKU ?? "claude-haiku-4-5-20251001";
+    case "sonnet":
+      return process.env.HARNESS_MODEL_SONNET ?? "claude-sonnet-5-5";
+    case "opus":
+      return process.env.HARNESS_MODEL_OPUS ?? "claude-opus-5-5";
+    default:
+      return tier; // already a model id
+  }
+}
 
 export interface Subagent {
   name: string;
@@ -90,47 +115,36 @@ export function loadRegistry(harnessRepo = getHarnessRepo()): Registry {
 /** How a skill is invoked: its slash command if it has one, else the skill name. */
 function invocation(e: SkillEntry): string {
   const cmd = e.entry[0];
-  return cmd ? `\`${cmd}\` → \`${e.name}\`` : `\`${e.name}\``;
+  return cmd ? `${cmd} → ${e.name}` : e.name;
 }
 
 /**
- * Render the routing block injected into CLAUDE.md. Deliberately terse: this is
- * loaded into every session, so it carries intent → destination → tier and
- * nothing else. Depth lives in the registry, read on demand.
+ * Render definitions/registry.index.md. Deliberately terse: the router loads this
+ * on every dispatch, so it carries triggers → destination → tier and nothing else.
+ * Depth lives in registry.json, read only for the chosen skill.
  */
-export function renderRoutingBlock(reg: Registry): string {
+export function renderIndex(reg: Registry): string {
   const lines: string[] = [
-    BEGIN_MARKER,
+    "<!-- Generated from definitions/registry.json by `harness registry sync`. Do not hand-edit. -->",
     "",
-    "<!-- Generated from definitions/registry.json. Do not hand-edit: `harness registry sync` overwrites it. -->",
+    "# Routing index",
     "",
-    "| Intent | Route to | Tier |",
+    "| Route to | Tier | Triggers |",
     "|---|---|---|",
   ];
-
   for (const s of reg.skills) {
     if (s.name === "harness-router") continue; // the router is the thing reading this
-    const triggers = s.triggers.slice(0, 4).join(", ");
-    lines.push(`| ${triggers} | ${invocation(s)} | ${s.tier} |`);
+    lines.push(`| ${invocation(s)} | ${s.tier} | ${s.triggers.slice(0, 5).join("; ")} |`);
   }
   for (const k of reg.composites) {
-    lines.push(`| ${k.purpose} | \`${k.entry[0]}\` (scatter/gather) | ${k.tier} |`);
+    lines.push(`| ${k.entry[0]} (scatter/gather) | ${k.tier} | ${k.purpose} |`);
   }
-
-  lines.push("", "**Reuse, never rebuild** — route by intent:", "");
+  lines.push("", "Reuse, never rebuild:");
   for (const [capability, target] of Object.entries(reg.reuse)) {
     if (capability.startsWith("$")) continue;
-    lines.push(`- ${capability} → \`${target}\``);
+    lines.push(`- ${capability} → ${target}`);
   }
-
-  lines.push(
-    "",
-    `**Never routable** (internal sub-agents of \`sosafe-ai-harness-task-to-pr\`): ${reg.not_routable.names
-      .map((n) => `\`${n}\``)
-      .join(", ")}.`,
-    "",
-    END_MARKER,
-  );
+  lines.push("", `Never routable: ${reg.not_routable.names.join(", ")}.`, "");
   return lines.join("\n");
 }
 
@@ -153,6 +167,14 @@ interface Parsed {
   /** Instruction lines after the frontmatter block — what the contract cap measures. */
   bodyLines: number;
   descriptionChars: number;
+}
+
+/** Non-empty lines after the frontmatter block — the cap for commands and agents. */
+function bodyLineCount(file: string): number {
+  const text = readFileSync(file, "utf8");
+  const end = text.startsWith("---") ? text.indexOf("\n---", 3) : -1;
+  const body = end === -1 ? text : text.slice(end + 4);
+  return body.split("\n").filter((l) => l.trim()).length;
 }
 
 /** Split a SKILL.md into its frontmatter fields and its instruction body. */
@@ -285,43 +307,50 @@ export function checkRegistry(harnessRepo = getHarnessRepo()): Finding[] {
     }
   }
 
-  // CLAUDE.md's generated block must match what the registry renders.
+  // The generated index must match what the registry renders, and CLAUDE.md must
+  // not carry a routing table of its own (it used to; the index replaced it).
+  const indexFile = join(harnessRepo, INDEX_FILE);
+  if (!existsSync(indexFile)) {
+    findings.push({ level: "error", msg: `${INDEX_FILE} missing — run \`harness registry sync\`` });
+  } else if (readFileSync(indexFile, "utf8").trim() !== renderIndex(reg).trim()) {
+    findings.push({ level: "error", msg: `${INDEX_FILE} has drifted — run \`harness registry sync\`` });
+  }
   const claudeMd = join(harnessRepo, "CLAUDE.md");
   if (existsSync(claudeMd)) {
     const text = readFileSync(claudeMd, "utf8");
-    const start = text.indexOf(BEGIN_MARKER);
-    const stop = text.indexOf(END_MARKER);
-    if (start === -1 || stop === -1) {
-      findings.push({ level: "error", msg: "CLAUDE.md has no generated routing block — run `harness registry sync`" });
-    } else {
-      const current = text.slice(start, stop + END_MARKER.length);
-      if (current.trim() !== renderRoutingBlock(reg).trim()) {
-        findings.push({ level: "error", msg: "CLAUDE.md routing block has drifted — run `harness registry sync`" });
-      }
+    if (text.includes(BEGIN_MARKER)) {
+      findings.push({ level: "error", msg: "CLAUDE.md still carries a generated routing block — delete it; the index replaced it" });
+    }
+    const n = text.split("\n").length;
+    if (n > CLAUDE_MD_LINE_CAP) {
+      findings.push({ level: "error", msg: `CLAUDE.md is ${n} lines, over the ${CLAUDE_MD_LINE_CAP}-line always-on cap` });
+    }
+  }
+
+  // Commands and agents are loaded whole when invoked; keep them to contracts.
+  for (const [dirName, cap] of [["commands", COMMAND_LINE_CAP], ["agents", AGENT_LINE_CAP]] as const) {
+    const dir = join(harnessRepo, ".claude", dirName);
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".md"))) {
+      const n = bodyLineCount(join(dir, f));
+      if (n > cap) findings.push({ level: "error", msg: `${dirName}/${f}: ${n} body lines, over the ${cap}-line cap` });
     }
   }
 
   return findings;
 }
 
-/** Rewrite CLAUDE.md's generated routing block from the registry. */
+/** Regenerate definitions/registry.index.md from the registry. */
 export function syncRegistry(harnessRepo = getHarnessRepo()): boolean {
   const reg = loadRegistry(harnessRepo);
-  const claudeMd = join(harnessRepo, "CLAUDE.md");
-  const text = readFileSync(claudeMd, "utf8");
-  const start = text.indexOf(BEGIN_MARKER);
-  const stop = text.indexOf(END_MARKER);
-  if (start === -1 || stop === -1) {
-    fail("CLAUDE.md has no BEGIN/END GENERATED ROUTING markers — add them first.");
-    return false;
-  }
-  const next = text.slice(0, start) + renderRoutingBlock(reg) + text.slice(stop + END_MARKER.length);
-  if (next === text) {
-    info("CLAUDE.md routing block already up to date.");
+  const file = join(harnessRepo, INDEX_FILE);
+  const next = renderIndex(reg);
+  if (existsSync(file) && readFileSync(file, "utf8") === next) {
+    info(`${INDEX_FILE} already up to date.`);
     return true;
   }
-  writeFileSync(claudeMd, next, "utf8");
-  ok("CLAUDE.md routing block regenerated from definitions/registry.json.");
+  writeFileSync(file, next, "utf8");
+  ok(`${INDEX_FILE} regenerated from definitions/registry.json.`);
   return true;
 }
 
