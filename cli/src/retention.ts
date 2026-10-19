@@ -27,7 +27,8 @@ export interface FolderPolicy {
   recurse?: boolean;
   exclude_dirs?: string[];
   date_from?: DateFrom | DateFrom[];
-  match?: { frontmatter_type?: string[]; filename?: string };
+  /** Only notes whose basename starts with YYYY-MM-DD take part in the ladder. */
+  match?: { frontmatter_type?: string[]; dated_filename?: boolean };
   ladder?: Rung[];
   budgets?: { max_live_files?: number };
   exempt_types?: string[];
@@ -35,10 +36,12 @@ export interface FolderPolicy {
   // distill
   stale_after_days?: number;
   updated_from?: string[];
-  time_bound?: { ticket_key_pattern: string; stale_after_days: number; frontmatter_types: string[] };
+  /** Ticket-scoped notes: basename starts with one of these prefixes followed by `-<digits>`. */
+  time_bound?: { ticket_key_prefixes: string[]; stale_after_days: number; frontmatter_types: string[] };
   near_dupe_jaccard?: number;
   group_by?: "stem";
-  stem_pattern?: string;
+  /** Suffixes stripped from a meeting basename (after the date) before grouping. */
+  stem_suffixes?: string[];
   period?: "month";
   out_dir?: string;
   children_to?: string;
@@ -252,6 +255,31 @@ export function isoWeek(date: string): { key: string; start: string; end: string
   week1Monday.setUTCDate(jan4.getUTCDate() - jan4day + 1);
   const week = Math.floor((monday.getTime() - week1Monday.getTime()) / (7 * 86_400_000)) + 1;
   return { key: `${year}-W${String(week).padStart(2, "0")}`, start: isoDate(monday), end: isoDate(sunday) };
+}
+
+/** `2026-09-30-ltc-daily-prep` → `ltc-daily`: strip the date prefix and any known suffix. No regex from config. */
+export function meetingStem(basename: string, suffixes: string[] = []): string {
+  let stem = DATE_PREFIX.test(basename) ? basename.slice(10).replace(/^-/, "") : basename;
+  for (const suf of suffixes) {
+    if (stem.endsWith(`-${suf}`)) {
+      stem = stem.slice(0, -(suf.length + 1));
+      break;
+    }
+  }
+  return stem || "meeting";
+}
+
+/** `ltc-1200-old-plan` → `ltc-1200` when a listed prefix is followed by `-<digits>`; else null. Linear time. */
+export function ticketKeyOf(basename: string, prefixes: string[]): string | null {
+  const lower = basename.toLowerCase();
+  for (const pre of prefixes) {
+    const p = `${pre.toLowerCase()}-`;
+    if (!lower.startsWith(p)) continue;
+    let i = p.length;
+    while (i < lower.length && lower[i] >= "0" && lower[i] <= "9") i++;
+    if (i > p.length && (i === lower.length || lower[i] === "-")) return lower.slice(0, i);
+  }
+  return null;
 }
 
 export function monthKey(date: string): { key: string; start: string; end: string } {

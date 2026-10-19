@@ -172,22 +172,27 @@ CLAUDE.md                # 30-line session primer; routing lives in definitions/
 
 Your **profile** (`~/.claude/sosafe-harness/profile.json`) and **knowledge vault** (Obsidian) live outside the repo and are never committed — only the shared setup is.
 
-## Scheduled runs (launchd)
+## Scheduled runs (launchd + Docker, no Full Disk Access)
 
 ```bash
+harness docker build               # one-time: builds the sosafe-harness-runner image (node 24 + Claude Code)
+harness docker login               # one-time: /login inside the container; the login lives in a named volume
+harness docker run compress        # try it: dry-run plan from inside the sandbox (add --apply to execute)
 harness install-launchd            # dry run: shows the four jobs and their plists
 harness install-launchd --apply    # writes ~/Library/LaunchAgents/de.sosafe.harness.*.plist, loads them, removes any old crontab block
-harness doctor                     # "Schedule" block: installed? ran on time? could it read the vault?
+harness doctor                     # "Schedule" block: installed? ran on time? image built? container logged in?
 ```
+
+The only job that reads the vault (`compress`) runs inside Docker: the container sees `/harness` (repo, read-only), `/vault` (bind-mounted by Docker Desktop file sharing — not a macOS Full Disk Access grant), and `/root/.claude/sosafe-harness` (your state dir, so audit logs and `last-run.json` land where `harness doctor` reads them). It authenticates with its own Claude login in the `sosafe-harness-claude` volume, or with `ANTHROPIC_API_KEY` from `~/.claude/sosafe-harness/docker.env` if you prefer a key. The other three jobs never touch `~/Documents` and run on the host node.
 
 | Job | When | What |
 |---|---|---|
-| `compress` | Mon 07:50 | `harness compress --apply --max-budget-usd 3` — rollups, distills, archive moves |
+| `compress` | Mon 07:50 | `docker run … sosafe-harness-runner compress --apply --max-budget-usd 3` — rollups, distills, archive moves, sandboxed |
 | `sync` | Mon–Fri 08:30 | pull harness + marketplaces, rebuild the CLI |
 | `eval` | Sun 09:00 | replay the golden tasks → fresh scorecard for self-improve |
 | `self-improve` | Fri 16:00 | read-only reflection, capped at $2 |
 
-Why launchd and not cron: on macOS cron has no Full Disk Access to `~/Documents` (where the vault lives) and skips runs the laptop slept through; launchd fires missed jobs on wake. **One-time step:** grant Full Disk Access to the `node` binary the plist names (System Settings › Privacy & Security); `harness doctor` tells you when a job could not read the vault. Logs land in `~/.claude/sosafe-harness/logs/`. Every job is draft-only.
+Why launchd and not cron: on macOS cron has no access to `~/Documents` (where the vault lives) and skips runs the laptop slept through; launchd fires missed jobs on wake, and the Docker sandbox means no host process ever needs Full Disk Access. If Docker Desktop asks once for "Files and Folders → Documents", that is the normal per-app grant. Logs land in `~/.claude/sosafe-harness/logs/`. Every job is draft-only.
 
 ## Intellectual foundations
 

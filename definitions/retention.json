@@ -5,7 +5,8 @@
     "v2 adds a rollup ladder (daily → weekly → monthly digests), distillation for",
     "meetings and knowledge, frontmatter TTLs, link rewriting on move, index budgets,",
     "and an audit log. Nothing is deleted, ever. `harness compress` (and `harness",
-    "archive`, its rule-only subset) is a dry run unless given --apply."
+    "archive`, its rule-only subset) is a dry run unless given --apply.",
+    "No field is ever compiled into a regular expression: stems and ticket keys use prefix/suffix lists (Semgrep ReDoS finding, PRs #3-#5)."
   ],
   "default_after_days": 30,
   "date_from_default": [
@@ -21,7 +22,7 @@
         "frontmatter_type": [
           "daily"
         ],
-        "filename": "^\\d{4}-\\d{2}-\\d{2}"
+        "dated_filename": true
       },
       "date_from": "filename-prefix",
       "ladder": [
@@ -63,7 +64,6 @@
       "date_from": "filename-prefix",
       "after_days": 30,
       "group_by": "stem",
-      "stem_pattern": "^\\d{4}-\\d{2}-\\d{2}-(.+?)(?:-(?:prep|notes|followup))?$",
       "period": "month",
       "out_dir": "meetings/rollups",
       "children_to": "meetings/archive",
@@ -76,7 +76,12 @@
       "budgets": {
         "max_live_files": 25
       },
-      "note": "Recurring stems (ltc-daily, ltc-replenishment, …) distil into one note per stem per month; single-note stems archive without the LLM."
+      "note": "Recurring stems (ltc-daily, ltc-replenishment, …) distil into one note per stem per month; single-note stems archive without the LLM.",
+      "stem_suffixes": [
+        "prep",
+        "notes",
+        "followup"
+      ]
     },
     "monitoring": {
       "strategy": "archive",
@@ -110,7 +115,12 @@
         "mtime"
       ],
       "time_bound": {
-        "ticket_key_pattern": "^(ltc|dx|sof|csa)-\\d+",
+        "ticket_key_prefixes": [
+          "ltc",
+          "dx",
+          "sof",
+          "csa"
+        ],
         "stale_after_days": 60,
         "frontmatter_types": [
           "plan",

@@ -35,3 +35,16 @@ test("frontmatter parser: scalars, arrays, quotes, booleans", () => {
   assert.equal(fm.last_updated, "08:13");
   assert.equal(body, "body");
 });
+
+test("meetingStem and ticketKeyOf are list-driven, no regex from config", async () => {
+  const { meetingStem, ticketKeyOf } = await import("../src/retention.js");
+  assert.equal(meetingStem("2026-09-30-ltc-daily-prep", ["prep", "notes"]), "ltc-daily");
+  assert.equal(meetingStem("2026-09-30-ltc-daily", ["prep"]), "ltc-daily");
+  assert.equal(meetingStem("2026-09-30", ["prep"]), "meeting");
+  assert.equal(ticketKeyOf("ltc-1200-old-plan", ["ltc", "dx"]), "ltc-1200");
+  assert.equal(ticketKeyOf("LTC-7", ["ltc"]), "ltc-7");
+  assert.equal(ticketKeyOf("ltc-plan", ["ltc"]), null);
+  assert.equal(ticketKeyOf("ltcx-12", ["ltc"]), null);
+  // Pathological input stays linear: a long run of digits is just scanned once.
+  assert.equal(ticketKeyOf("dx-" + "9".repeat(100000) + "-x", ["dx"])?.length, 100003);
+});
