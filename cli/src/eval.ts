@@ -146,8 +146,12 @@ function scoreTask(task: GoldenTask, text: string, toolsUsed: string[], harnessR
 
   if (exp.answer_matches) {
     // Accept a leading `(?i)` (Python/PCRE style) by turning it into the JS `i` flag.
+    // Patterns come from the committed golden-tasks file, never from user input; still keep
+    // them short and free of nested quantifiers so a typo cannot stall the evaluator.
     const ci = exp.answer_matches.startsWith("(?i)");
-    const re = new RegExp(ci ? exp.answer_matches.slice(4) : exp.answer_matches, ci ? "i" : "");
+    const src = ci ? exp.answer_matches.slice(4) : exp.answer_matches;
+    if (src.length > 80 || /[+*]\)?[+*{]/.test(src)) throw new Error(`answer_matches too complex for task ${task.id}`);
+    const re = new RegExp(src, ci ? "i" : "");
     checks.push({ name: "answer", pass: re.test(text), detail: re.test(text) ? undefined : `answer does not match /${exp.answer_matches}/` });
   }
 

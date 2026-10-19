@@ -11,6 +11,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { getHarnessRepo, lastRunPath, logsDir, readConfig } from "./paths.js";
+import { dockerAvailable, dockerBin, imageBuilt, runArgs, volumeExists } from "./docker.js";
 import { c, fail, info, ok, warn } from "./ui.js";
 
 export type Requires = "fs" | "claude" | "connectors";
@@ -24,6 +25,8 @@ export interface Job {
   requires: Requires[];
   /** Expected cadence in days; doctor warns when last-run is older than this + 1. */
   cadenceDays: number;
+  /** "docker": run inside the sandbox image (needed for anything that reads the vault under ~/Documents). */
+  runner?: "docker";
 }
 
 export const LABEL_PREFIX = "de.sosafe.harness";
@@ -35,9 +38,10 @@ export function jobs(): Job[] {
       name: "compress",
       when: { Weekday: 1, Hour: 7, Minute: 50 },
       args: ["compress", "--apply", "--max-budget-usd", "3"],
-      comment: "weekly (Mon): roll up dailies, distil meetings, archive dated notes; never deletes",
+      comment: "weekly (Mon): roll up dailies, distil meetings, archive dated notes; never deletes (runs in Docker — no Full Disk Access)",
       requires: ["fs", "claude"],
       cadenceDays: 7,
+      runner: "docker",
     },
     {
       name: "sync",
@@ -82,6 +86,15 @@ function pathEnv(): string {
 
 const xml = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/** ProgramArguments for a job: the host node + CLI, or `docker run …` for sandboxed jobs. */
+export function programArgs(j: Job, entry: string): string[] {
+  if (j.runner === "docker") {
+    const vault = readConfig()?.vaultPath ?? "";
+    return runArgs(getHarnessRepo(), vault, j.name, j.args);
+  }
+  return [nodeBin(), entry, ...j.args];
+}
+
 export function renderPlist(j: Job, entry: string): string {
   const cal = (w: number | undefined): string =>
     `    <dict>${w !== undefined ? `<key>Weekday</key><integer>${w}</integer>` : ""}<key>Hour</key><integer>${j.when.Hour}</integer><key>Minute</key><integer>${j.when.Minute}</integer></dict>`;
@@ -96,9 +109,7 @@ export function renderPlist(j: Job, entry: string): string {
   <key>Comment</key><string>${xml(j.comment)}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${xml(nodeBin())}</string>
-    <string>${xml(entry)}</string>
-${j.args.map((a) => `    <string>${xml(a)}</string>`).join("\n")}
+${programArgs(j, entry).map((a) => `    <string>${xml(a)}</string>`).join("\n")}
   </array>
   <key>StartCalendarInterval</key>
 ${intervals}
@@ -171,7 +182,7 @@ export function installLaunchd(argv: string[]): number {
     const body = renderPlist(j, entry);
     if (!apply) {
       info(`${c.bold(label(j))}  ${j.comment}`);
-      console.log(c.dim(`  ${p}\n  ${nodeBin()} ${entry} ${j.args.join(" ")}`));
+      console.log(c.dim(`  ${p}\n  ${programArgs(j, entry).join(" ")}`));
       continue;
     }
     writeFileSync(p, body, "utf8");
@@ -183,10 +194,8 @@ export function installLaunchd(argv: string[]): number {
 
   if (apply) {
     if (removeCronBlock()) ok("Removed the managed crontab block (cron is retired).");
-    info(
-      `Logs: ${logsDir()}. One-time step: grant Full Disk Access to ${c.bold(nodeBin())} in System Settings › Privacy & Security, ` +
-        `or launchd cannot read the vault under ~/Documents. \`harness doctor\` reports whether it can.`,
-    );
+    info(`Logs: ${logsDir()}. The vault job runs in Docker (no Full Disk Access needed); the others never read ~/Documents.`);
+    if (!imageBuilt()) warn("Docker image not built yet — run `harness docker build` and `harness docker login` before Monday.");
   } else {
     info("Dry run. Re-run with --apply to write the plists, load them, and remove the crontab block.");
   }
@@ -220,7 +229,7 @@ export function recordLastRun(job: string, run: LastRun): void {
 
 /** Can this process list the vault? Under launchd without FDA this is false. */
 export function vaultReadable(): boolean | undefined {
-  const v = readConfig()?.vaultPath;
+  const v = process.env.HARNESS_VAULT ?? readConfig()?.vaultPath;
   if (!v) return undefined;
   try {
     execFileSync("ls", [v], { stdio: "ignore" });
@@ -246,11 +255,19 @@ export function scheduleReport(): { lines: string[]; warnings: string[] } {
     if (!installed) warnings.push(`${j.name}: not scheduled — run \`harness install-launchd --apply\``);
     else if (age === null || age > j.cadenceDays + 1) warnings.push(`${j.name}: overdue (${ageTxt}); check ${join(logsDir(), `${j.name}.err.log`)}`);
     if (lr && lr.vault_readable === false) {
-      warnings.push(`${j.name}: launchd could not read the vault — grant Full Disk Access to ${nodeBin()} (System Settings › Privacy & Security › Full Disk Access); redo it when nvm switches node versions`);
+      warnings.push(j.runner === "docker"
+        ? `${j.name}: the container could not read /vault — check Docker Desktop › Settings › Resources › File sharing includes the vault's parent folder`
+        : `${j.name}: could not read the vault — move this job to the Docker runner; the harness never asks for Full Disk Access`);
     }
     if (installed) {
       const plist = readFileSync(p, "utf8");
-      if (!plist.includes(nodeBin())) warnings.push(`${j.name}: plist points at a different node than ${nodeBin()} — re-run \`harness install-launchd --apply\``);
+      const expected = j.runner === "docker" ? dockerBin() : nodeBin();
+      if (!plist.includes(expected)) warnings.push(`${j.name}: plist points at a different ${j.runner === "docker" ? "docker" : "node"} than ${expected} — re-run \`harness install-launchd --apply\``);
+    }
+    if (j.runner === "docker") {
+      if (!dockerAvailable()) warnings.push(`${j.name}: Docker is not reachable — start Docker Desktop (the job runs \`docker run\`)`);
+      else if (!imageBuilt()) warnings.push(`${j.name}: image not built — \`harness docker build\``);
+      else if (!volumeExists()) warnings.push(`${j.name}: no container login yet — \`harness docker login\` once (or set ANTHROPIC_API_KEY in ~/.claude/sosafe-harness/docker.env)`);
     }
   }
   if (cronBlockPresent()) warnings.push("a managed crontab block is still installed; `harness install-launchd --apply` removes it");

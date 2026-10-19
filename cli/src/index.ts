@@ -40,6 +40,7 @@ import { system } from "./system.js";
 import { archive } from "./archive.js";
 import { compress } from "./compress.js";
 import { ship } from "./ship.js";
+import { docker } from "./docker.js";
 import { linksCli } from "./links.js";
 import { installLaunchd, recordLastRun, vaultReadable } from "./launchd.js";
 import { metrics } from "./observability.js";
@@ -98,6 +99,8 @@ async function main(argv: string[]): Promise<number> {
       return compress(rest);
     case "ship":
       return ship(rest);
+    case "docker":
+      return docker(rest);
     case "links": {
       const vIdx = rest.findIndex((a) => a === "--vault");
       const vault = vIdx !== -1 ? rest[vIdx + 1] : readConfig()?.vaultPath;
@@ -391,7 +394,8 @@ function usage(): number {
       `  harness archive [--apply]       ${c.dim("rule-only retention: move aged/expired/superseded vault notes (never deletes)")}\n` +
       `  harness compress [--apply] [--knowledge]  ${c.dim("roll up dailies → weekly → monthly, distil meetings, consolidate knowledge; dry run by default")}\n` +
       `  harness links report|repair|normalize     ${c.dim("vault wikilink health; repair re-points pre-archive links")}\n` +
-      `  harness install-launchd [--apply]  ${c.dim("schedule compress/sync/eval/self-improve via launchd (replaces cron)")}\n` +
+      `  harness install-launchd [--apply]  ${c.dim("schedule compress (in Docker) / sync / eval / self-improve via launchd (replaces cron)")}\n` +
+      `  harness docker build|login|run|status  ${c.dim("sandboxed runner for vault jobs: no Full Disk Access, vault bind-mounted by Docker Desktop")}\n` +
       `  harness metrics [--json]        ${c.dim("skill usage / coverage / success / drift (observability)")}\n` +
       `  harness sessions                ${c.dim("list saved contexts + session ids")}\n` +
       `  harness reset <context>         ${c.dim("forget a context's session")}\n` +

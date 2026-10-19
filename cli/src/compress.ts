@@ -17,8 +17,8 @@ import { updateIndexes } from "./vault-index.js";
 import { nearDuplicates } from "./similarity.js";
 import { readLastRuns } from "./launchd.js";
 import {
-  ageDays, dateChain, forcedOut, isExempt, isoWeek, loadPolicy, monthKey, parseFrontmatter, readNote,
-  resolveUpdated, scanFolder, sha256, type FolderPolicy, type Note, type RetentionV2, type Rung,
+  ageDays, dateChain, forcedOut, isExempt, isoWeek, loadPolicy, meetingStem, monthKey, parseFrontmatter, readNote,
+  resolveUpdated, scanFolder, sha256, ticketKeyOf, DATE_PREFIX, type FolderPolicy, type Note, type RetentionV2, type Rung,
 } from "./retention.js";
 import { banner, c, fail, info, ok, warn } from "./ui.js";
 
@@ -272,10 +272,10 @@ function planRollups(opts: CompressOptions, pol: RetentionV2, folder: string, fp
   const { vault, today } = opts;
   const rungs = fp.ladder ?? [];
   const fallbackCutoff = fp.after_days ?? pol.default_after_days;
-  const filenameRe = fp.match?.filename ? new RegExp(fp.match.filename) : null;
+  const needDated = fp.match?.dated_filename !== false;
 
   // Rung 0: dated notes in the live folder → weekly.
-  const dated = live.filter((n) => n.date && (!filenameRe || filenameRe.test(posix.basename(n.rel))));
+  const dated = live.filter((n) => n.date && (!needDated || DATE_PREFIX.test(posix.basename(n.rel))));
   const undated = live.filter((n) => !dated.includes(n));
   for (const n of undated) plan.exempt.push(`${n.rel} (no date)`);
 
@@ -332,7 +332,6 @@ function planRollups(opts: CompressOptions, pol: RetentionV2, folder: string, fp
 function planMeetings(opts: CompressOptions, pol: RetentionV2, folder: string, fp: FolderPolicy, live: Note[], plan: CompressPlan): void {
   const { vault, today } = opts;
   const cutoff = fp.after_days ?? pol.default_after_days;
-  const stemRe = new RegExp(fp.stem_pattern ?? "^\\d{4}-\\d{2}-\\d{2}-(.+)$");
   const groups = new Map<string, Note[]>();
   for (const n of live) {
     if (!n.date) {
@@ -340,8 +339,7 @@ function planMeetings(opts: CompressOptions, pol: RetentionV2, folder: string, f
       continue;
     }
     if (ageDays(n.date, today) < cutoff) continue;
-    const base = stripMd(posix.basename(n.rel));
-    const stem = stemRe.exec(base)?.[1] ?? base.replace(/^\d{4}-\d{2}-\d{2}-?/, "") ?? "meeting";
+    const stem = meetingStem(stripMd(posix.basename(n.rel)), fp.stem_suffixes ?? []);
     const m = monthKey(n.date);
     const key = `${stem}|${m.key}`;
     groups.set(key, [...(groups.get(key) ?? []), n]);
@@ -365,7 +363,7 @@ function planMeetings(opts: CompressOptions, pol: RetentionV2, folder: string, f
 function planKnowledge(opts: CompressOptions, pol: RetentionV2, folder: string, fp: FolderPolicy, live: Note[], plan: CompressPlan): void {
   const { today } = opts;
   const chain = fp.updated_from ?? ["frontmatter:updated", "frontmatter:date", "mtime"];
-  const ticketRe = fp.time_bound ? new RegExp(fp.time_bound.ticket_key_pattern, "i") : null;
+  const prefixes = fp.time_bound?.ticket_key_prefixes ?? [];
   const cands = new Map<string, KnowledgeCandidate>();
   const add = (n: Note, reason: string): void => {
     const c = cands.get(n.rel) ?? { note: n, reasons: [], updated: resolveUpdated(n, chain) };
@@ -377,7 +375,7 @@ function planKnowledge(opts: CompressOptions, pol: RetentionV2, folder: string, 
     const age = ageDays(updated, today);
     const base = stripMd(posix.basename(n.rel));
     const type = typeof n.fm.type === "string" ? n.fm.type : "";
-    const timeBound = (ticketRe && ticketRe.test(base)) || (fp.time_bound?.frontmatter_types ?? []).includes(type);
+    const timeBound = ticketKeyOf(base, prefixes) !== null || (fp.time_bound?.frontmatter_types ?? []).includes(type);
     if (timeBound && fp.time_bound && age >= fp.time_bound.stale_after_days) add(n, `time-bound, ${age}d since update`);
     else if (fp.stale_after_days && age >= fp.stale_after_days) add(n, `stale, ${age}d since update`);
   }
@@ -391,7 +389,7 @@ function planKnowledge(opts: CompressOptions, pol: RetentionV2, folder: string, 
   const clusters = new Map<string, KnowledgeCandidate[]>();
   for (const cnd of cands.values()) {
     const base = stripMd(posix.basename(cnd.note.rel));
-    const tk = ticketRe?.exec(base)?.[0]?.toLowerCase();
+    const tk = ticketKeyOf(base, prefixes);
     const partner = cnd.reasons.find((r) => r.startsWith("near-duplicate of "))?.slice("near-duplicate of ".length).split(" ")[0];
     const key = tk ?? (partner ? [cnd.note.rel, partner].sort()[0] : cnd.note.rel);
     clusters.set(key, [...(clusters.get(key) ?? []), cnd]);
@@ -940,7 +938,8 @@ export async function compress(argv: string[]): Promise<number> {
     return 0;
   }
   const harnessRepo = getHarnessRepo();
-  const vault = a.vault ?? readConfig()?.vaultPath;
+  // HARNESS_VAULT: where a container has the vault bind-mounted (config.json holds the host path).
+  const vault = a.vault ?? process.env.HARNESS_VAULT ?? readConfig()?.vaultPath;
   if (!vault || !existsSync(vault)) {
     if (a.nudge) return 0;
     warn("No vault configured (config.json → vaultPath). Run `/setup` first — nothing to compress.");
